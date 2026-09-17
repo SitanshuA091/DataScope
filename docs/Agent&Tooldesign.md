@@ -1,0 +1,8 @@
+-  User uploads a **CSV/data file through the UI**, which is received and validated through an upload endpoint.
+-  After upload, show only a **lightweight dataset overview** — number of rows, columns, and column names/types — rather than automatically running the full EDA.
+- User chooses **what they want to investigate**, and the agent decides which EDA tool(s) to call based on that request.
+- **High-Level EDA Tool** — computes dataset-level statistics such as distributions, missing values, numeric summaries, and useful overview plots; structured results are passed to the LLM to produce a concise interpretation.
+- **Column-Specific EDA Tool** — analyzes selected column(s) using appropriate statistics (`describe()`, value counts, distribution, cardinality, etc.) and plots; the LLM interprets the results rather than calculating them itself.
+- **Relationship / Correlation Tool** — investigates relationships between selected variables using correlations, grouped statistics, scatter plots, box plots, or a correlation heatmap; LLM summarizes noteworthy relationships.
+- **Data Quality Tool** — checks missingness, duplicates, constant/high-cardinality columns, potential outliers and suspicious values; LLM explains the important quality issues and their possible implications.
+- **Chatbot question** - Ask a question about the dataset which we will persisit a dataframe of in DB and feed to LLM with the user question, we can limit no. of questions per session
