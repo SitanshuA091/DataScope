@@ -1,0 +1,1 @@
+## Celery configuration: Redis broker, retry policy, task settings.

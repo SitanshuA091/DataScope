@@ -1,0 +1,1 @@
+## Runs context → planner → validated tools → interpretation flow.

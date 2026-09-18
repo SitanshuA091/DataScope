@@ -1,0 +1,1 @@
+## Pydantic request/response models; never return raw ORM models.

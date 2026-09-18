@@ -1,0 +1,1 @@
+##  Strict Pydantic schemas for planner output and tool arguments.

@@ -1,0 +1,1 @@
+## Sends compact computed results to LLM for grounded explanation.

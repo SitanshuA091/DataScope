@@ -1,0 +1,1 @@
+## Worker task that executes one persisted analysis run.

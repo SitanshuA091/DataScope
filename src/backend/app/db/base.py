@@ -1,0 +1,1 @@
+## Shared declarative model base and model imports for Alembic.

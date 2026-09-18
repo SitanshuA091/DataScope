@@ -1,0 +1,1 @@
+## Publishes worker progress events for WebSocket clients.

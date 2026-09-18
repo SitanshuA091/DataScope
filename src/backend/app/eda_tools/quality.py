@@ -1,0 +1,1 @@
+## Duplicates, nulls, constants, outliers, suspicious values.

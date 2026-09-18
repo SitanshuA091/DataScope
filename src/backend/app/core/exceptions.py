@@ -1,0 +1,1 @@
+## Shared application errors and consistent API error responses.

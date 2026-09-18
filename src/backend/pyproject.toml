@@ -1,0 +1,41 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "authlib>=1.8.0",
+    "boto3>=1.43.97",
+    "celery[redis]>=5.6.3",
+    "fastapi>=0.141.1",
+    "httpx>=0.28.1",
+    "itsdangerous>=2.2.0",
+    "litellm>=1.101.0",
+    "matplotlib>=3.11.2",
+    "numpy>=2.5.3",
+    "opentelemetry-api>=1.44.0",
+    "opentelemetry-instrumentation-fastapi>=0.65b0",
+    "opentelemetry-sdk>=1.44.0",
+    "orjson>=3.12.0",
+    "pandas>=3.0.6",
+    "pyarrow>=25.0.1",
+    "pydantic-settings>=2.15.0",
+    "python-multipart>=0.0.32",
+    "redis>=6.4.0",
+    "scipy>=1.18.1",
+    "seaborn>=0.13.2",
+    "structlog>=26.1.0",
+    "tenacity>=9.1.4",
+    "uvicorn[standard]>=0.53.0",
+]
+
+[dependency-groups]
+
+test = [
+    "pytest", 
+    "pytest-asyncio", 
+    "pytest-cov" 
+    "ruff", 
+    "mypy"
+]

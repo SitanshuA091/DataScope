@@ -1,0 +1,1 @@
+## Google OAuth client registration/configuration.
