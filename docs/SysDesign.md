@@ -16,7 +16,7 @@ Docker
 | **Celery workers**                 | Run expensive EDA/agent jobs independently of the API request, even if the user closes the browser.                                   |
 | **Redis**                          | Acts as Celery’s message broker and stores short-lived cached analysis results / possibly live progress events.                       |
 | **PostgreSQL**                     | Persistent source of truth for users, workspaces, datasets, versions, sessions, runs, messages, tool calls, and statuses.             |
-| **Dataset/file storage**           | Stores uploaded CSVs and generated chart files; use local mounted storage initially and object storage when deployed.                 |
+| **Dataset/file storage** (Cloudfare R2)          | Stores uploaded CSVs and generated chart files; use local mounted storage initially and object storage when deployed.                 |
 | **EDA tool layer**                 | Deterministic functions for high-level EDA, column analysis, relationships, and data-quality checks.                                  |
 | **Agent orchestration layer**      | Uses the LLM to choose valid tools and explain their structured outputs, while never letting it invent statistics.                    |
 | **Session/context retrieval**      | Loads relevant dataset schema, selected columns, prior runs, and compact conversation context for follow-up requests.                 |
