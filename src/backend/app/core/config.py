@@ -44,8 +44,8 @@ class Settings(BaseSettings):
     # LLM provider keys used through LiteLLM
     google_api_key: SecretStr
     groq_api_key: SecretStr
-    planner_model: str = "groq/llama-3.3-70b-versatile"
-    interpreter_model: str = "gemini/gemini-2.5-flash"
+    planner_model: str = "openai/gpt-oss-120b"
+    interpreter_model: str = "gemini-3.5-flash"
 
     # PostgreSQL
     database_url: str
