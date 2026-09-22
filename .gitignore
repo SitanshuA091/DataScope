@@ -1,2 +1,17 @@
-.env
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
 *.db
+*.ruff_cache
+
+# Virtual environments
+.venv
+
+# environment variables
+.env
+
+
+.vscode
