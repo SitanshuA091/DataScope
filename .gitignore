@@ -6,7 +6,7 @@ wheels/
 *.egg-info
 *.db
 *.ruff_cache
-
+*.pytest_cache
 # Virtual environments
 .venv
 
