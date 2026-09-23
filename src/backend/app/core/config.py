@@ -54,7 +54,8 @@ class Settings(BaseSettings):
     redis_url: str
     cache_ttl_seconds: int = 60 * 60 * 24
 
-    # Cloudflare R2 / S3-compatible object storage
+    # Cloudflare R2 object storage. R2 exposes an S3-compatible API, but AWS
+    # S3 is not used as the storage backend.
     r2_endpoint_url: str
     r2_access_key_id: SecretStr
     r2_secret_access_key: SecretStr
