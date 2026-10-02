@@ -12,14 +12,15 @@ from app.db.models.user import User
 from app.schemas.analysis import (
     AnalysisCreateRequest,
     AnalysisRunResponse,
+    AnalysisRunSubmissionResponse,
     AnalysisToolListResponse,
 )
 from app.services.analysis_service import (
     available_analysis_tools,
     cancel_analysis_run,
-    create_analysis_run,
     get_analysis_run,
     retry_analysis_run,
+    submit_analysis_run,
 )
 
 router = APIRouter(tags=["Analysis"])
@@ -35,7 +36,7 @@ def list_analysis_tools() -> AnalysisToolListResponse:
 
 @router.post(
     "/datasets/{dataset_id}/analysis",
-    response_model=AnalysisRunResponse,
+    response_model=AnalysisRunSubmissionResponse,
     status_code=status.HTTP_201_CREATED,
 )
 def create_dataset_analysis(
@@ -43,8 +44,8 @@ def create_dataset_analysis(
     payload: AnalysisCreateRequest,
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
-) -> AnalysisRunResponse:
-    run = create_analysis_run(
+) -> AnalysisRunSubmissionResponse:
+    run, execution_mode = submit_analysis_run(
         db=db,
         user_id=current_user.id,
         dataset_id=dataset_id,
@@ -55,7 +56,32 @@ def create_dataset_analysis(
         include_plots=payload.include_plots,
     )
 
-    return AnalysisRunResponse.model_validate(run)
+    return AnalysisRunSubmissionResponse(
+        id=run.id,
+        status=run.status,
+        execution_mode=execution_mode,
+        dataset_version_id=run.dataset_version_id,
+        created_at=run.created_at,
+    )
+
+
+@router.post(
+    "/datasets/{dataset_id}/analysis-runs",
+    response_model=AnalysisRunSubmissionResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_dataset_analysis_run(
+    dataset_id: UUID,
+    payload: AnalysisCreateRequest,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> AnalysisRunSubmissionResponse:
+    return create_dataset_analysis(
+        dataset_id=dataset_id,
+        payload=payload,
+        db=db,
+        current_user=current_user,
+    )
 
 
 @router.get(
