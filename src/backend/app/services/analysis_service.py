@@ -11,6 +11,7 @@ import pandas as pd
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.config import settings
 from app.core.exceptions import AppError, ConflictError, NotFoundError
 from app.db.models.analysis_run import AnalysisRun
 from app.db.models.dataset import Dataset, DatasetVersion
@@ -25,6 +26,8 @@ STATUS_COMPLETED = "completed"
 STATUS_FAILED = "failed"
 STATUS_CANCELLED = "cancelled"
 TERMINAL_STATUSES = {STATUS_COMPLETED, STATUS_FAILED, STATUS_CANCELLED}
+EXECUTION_MODE_INLINE = "inline"
+EXECUTION_MODE_QUEUED = "queued"
 
 
 class AnalysisValidationError(AppError):
@@ -59,6 +62,45 @@ def _tool_payload(tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
             )
         normalized.append({"name": name, "arguments": arguments})
     return normalized
+
+
+def _should_execute_inline(
+    *,
+    dataset_version: DatasetVersion,
+    tools: list[dict[str, Any]],
+    include_plots: bool,
+) -> bool:
+    if include_plots:
+        return False
+    if len(tools) != 1:
+        return False
+    if tools[0]["name"] == "relationships":
+        return False
+    return (
+        dataset_version.row_count <= settings.inline_analysis_max_rows
+        and dataset_version.column_count <= settings.inline_analysis_max_columns
+    )
+
+
+def _submission_metadata(
+    *,
+    execution_mode: str,
+    queued_at: datetime | None = None,
+    celery_task_id: str | None = None,
+) -> dict[str, Any]:
+    metadata: dict[str, Any] = {"execution_mode": execution_mode}
+    if queued_at is not None:
+        metadata["queued_at"] = queued_at.isoformat()
+    if celery_task_id is not None:
+        metadata["celery_task_id"] = celery_task_id
+    return metadata
+
+
+def _dispatch_analysis_run(analysis_run_id: UUID) -> str:
+    from app.workers.analysis_tasks import execute_analysis_run_task
+
+    result = execute_analysis_run_task.delay(str(analysis_run_id))
+    return str(result.id)
 
 
 def _read_dataset_frame(dataset_version: DatasetVersion) -> pd.DataFrame:
@@ -103,14 +145,14 @@ def get_analysis_run(
     )
 
 
-def create_analysis_run(
+def create_analysis_run_record(
     *,
     db: Session,
     user_id: UUID,
     dataset_id: UUID,
     tools: list[dict[str, Any]],
     include_plots: bool = False,
-) -> AnalysisRun:
+) -> tuple[AnalysisRun, str]:
     dataset, dataset_version = get_dataset_overview(
         db=db,
         user_id=user_id,
@@ -147,19 +189,94 @@ def create_analysis_run(
             )
         )
 
+    execution_mode = (
+        EXECUTION_MODE_INLINE
+        if _should_execute_inline(
+            dataset_version=dataset_version,
+            tools=selected_tools,
+            include_plots=include_plots,
+        )
+        else EXECUTION_MODE_QUEUED
+    )
+    run.timings_json = _submission_metadata(execution_mode=execution_mode)
     dataset.workspace.last_activity_at = _now()
     db.commit()
     db.refresh(run)
 
-    execute_analysis_run(
-        db=db,
-        analysis_run_id=run.id,
-    )
     return get_analysis_run(
         db=db,
         user_id=user_id,
         analysis_run_id=run.id,
+    ), execution_mode
+
+
+def submit_analysis_run(
+    *,
+    db: Session,
+    user_id: UUID,
+    dataset_id: UUID,
+    tools: list[dict[str, Any]],
+    include_plots: bool = False,
+) -> tuple[AnalysisRun, str]:
+    run, execution_mode = create_analysis_run_record(
+        db=db,
+        user_id=user_id,
+        dataset_id=dataset_id,
+        tools=tools,
+        include_plots=include_plots,
     )
+
+    if execution_mode == EXECUTION_MODE_INLINE:
+        execute_analysis_run(db=db, analysis_run_id=run.id)
+        return (
+            get_analysis_run(db=db, user_id=user_id, analysis_run_id=run.id),
+            execution_mode,
+        )
+
+    try:
+        task_id = _dispatch_analysis_run(run.id)
+    except Exception as exc:  # noqa: BLE001 - persist dispatch failures on the run.
+        run.status = STATUS_FAILED
+        run.error_json = {
+            "type": exc.__class__.__name__,
+            "message": "Analysis run could not be queued.",
+            "dispatch_error": str(exc),
+        }
+        run.completed_at = _now()
+        db.commit()
+        db.refresh(run)
+    else:
+        run.timings_json = _submission_metadata(
+            execution_mode=execution_mode,
+            queued_at=_now(),
+            celery_task_id=task_id,
+        )
+        db.commit()
+        db.refresh(run)
+
+    return (
+        get_analysis_run(db=db, user_id=user_id, analysis_run_id=run.id),
+        execution_mode,
+    )
+
+
+def create_analysis_run(
+    *,
+    db: Session,
+    user_id: UUID,
+    dataset_id: UUID,
+    tools: list[dict[str, Any]],
+    include_plots: bool = False,
+) -> AnalysisRun:
+    run, _execution_mode = create_analysis_run_record(
+        db=db,
+        user_id=user_id,
+        dataset_id=dataset_id,
+        tools=tools,
+        include_plots=include_plots,
+    )
+    execute_analysis_run(db=db, analysis_run_id=run.id)
+    return get_analysis_run(db=db, user_id=user_id, analysis_run_id=run.id)
 
 
 def execute_analysis_run(
@@ -191,7 +308,7 @@ def execute_analysis_run(
 
     try:
         frame = _read_dataset_frame(run.dataset_version)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - persist dataset read failures on the run.
         now = _now()
         run.status = STATUS_FAILED
         run.error_json = _error_payload(exc)
@@ -219,7 +336,7 @@ def execute_analysis_run(
                 frame,
                 **execution.arguments_json,
             )
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - one tool failure should not hide run state.
             completed = _now()
             execution.status = STATUS_FAILED
             execution.error_json = _error_payload(exc)
