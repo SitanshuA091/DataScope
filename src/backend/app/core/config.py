@@ -71,6 +71,8 @@ class Settings(BaseSettings):
     max_llm_calls_per_run: int = 2
     max_questions_per_conversation: int = 10
     max_llm_sample_rows: int = 20
+    inline_analysis_max_rows: int = 10_000
+    inline_analysis_max_columns: int = 30
 
     # Celery worker limits
     celery_worker_concurrency: int = 1
