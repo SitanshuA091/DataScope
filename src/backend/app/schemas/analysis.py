@@ -8,6 +8,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 AnalysisStatus = Literal["pending", "running", "completed", "failed", "cancelled"]
+AnalysisExecutionMode = Literal["inline", "queued"]
 
 
 class ToolSelection(BaseModel):
@@ -58,6 +59,16 @@ class AnalysisRunResponse(BaseModel):
     completed_at: datetime | None
     updated_at: datetime
     tool_executions: list[ToolExecutionResponse] = Field(default_factory=list)
+
+
+class AnalysisRunSubmissionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    status: AnalysisStatus
+    execution_mode: AnalysisExecutionMode
+    dataset_version_id: UUID
+    created_at: datetime
 
 
 class AnalysisToolListResponse(BaseModel):
