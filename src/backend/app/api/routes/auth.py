@@ -1,7 +1,6 @@
 ## Google OAuth login, callback, logout, current user
 from typing import Annotated
 
-from authlib.integrations.starlette_client import OAuth
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
@@ -9,23 +8,14 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, get_db
 from app.core.config import settings
 from app.db.models.user import User
+from app.integrations.oauth_client import create_oauth_client, parse_google_user_info
 from app.schemas.auth import CurrentUserResponse
 from app.services.auth_service import get_or_create_google_user
 
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
-oauth = OAuth()
-
-oauth.register(
-    name="google",
-    server_metadata_url=(
-        "https://accounts.google.com/.well-known/openid-configuration"
-    ),
-    client_id=settings.google_client_id,
-    client_secret=settings.google_client_secret.get_secret_value(),
-    client_kwargs={"scope": "openid email profile"},
-)
+oauth = create_oauth_client(settings)
 
 
 @router.get("/google/login")
@@ -54,22 +44,27 @@ async def google_callback(
             detail="Google sign-in could not be completed.",
         ) from exc
 
-    google_sub = user_info.get("sub")
-    email = user_info.get("email")
-
-    if not google_sub or not email:
+    try:
+        google_profile = parse_google_user_info(user_info)
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Google did not return the required account identity.",
-        )
+            detail=str(exc),
+        ) from exc
 
-    user = get_or_create_google_user(
-        db=db,
-        google_sub=google_sub,
-        email=email,
-        name=user_info.get("name"),
-        avatar_url=user_info.get("picture"),
-    )
+    try:
+        user = get_or_create_google_user(
+            db=db,
+            google_sub=google_profile["google_sub"],
+            email=google_profile["email"],
+            name=google_profile["name"],
+            avatar_url=google_profile["avatar_url"],
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
 
     request.session.clear()
     request.session["user_id"] = str(user.id)
@@ -95,4 +90,5 @@ def get_me(
         email=current_user.email,
         name=current_user.name,
         avatar_url=current_user.avatar_url,
+        created_at=current_user.created_at,
     )
