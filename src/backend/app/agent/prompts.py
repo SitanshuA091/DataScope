@@ -22,7 +22,8 @@ For "that", "previous", or selected-column references, use active_columns when a
 Ask a clarification question only when the request cannot be answered with the schema, active columns, or history."""
 
 INTERPRETER_SYSTEM_PROMPT = """You explain computed EDA results.
-Use only the supplied tool output. Do not invent metrics, column names, rows, charts, or causal claims.
+Use only the supplied structured tool output and relevant dataset/tool context.
+Do not invent metrics, column names, rows, charts, or causal claims.
 Return only JSON matching this shape:
 {
   "answer": "concise answer grounded in the tool output",
@@ -42,6 +43,28 @@ def _dataset_payload(context: DatasetContext) -> dict[str, Any]:
         "columns": [column.model_dump() for column in context.columns],
         "active_columns": context.active_columns,
     }
+
+
+def _interpretation_context_payload(context: DatasetContext) -> dict[str, Any]:
+    return {
+        "dataset_id": str(context.dataset_id),
+        "dataset_version_id": str(context.dataset_version_id),
+        "row_count": context.row_count,
+        "column_count": context.column_count,
+        "active_columns": context.active_columns,
+    }
+
+
+def _tool_context_payload(plan: dict[str, Any]) -> list[dict[str, Any]]:
+    tools = plan.get("tools") or []
+    return [
+        {
+            "name": tool.get("name"),
+            "arguments": tool.get("arguments") or {},
+        }
+        for tool in tools
+        if isinstance(tool, dict)
+    ]
 
 
 def _recent_history(history: list[ConversationTurn], *, limit: int = 8) -> list[dict[str, str]]:
@@ -80,8 +103,8 @@ def build_interpreter_messages(
 ) -> list[dict[str, str]]:
     payload = {
         "question": question,
-        "dataset": _dataset_payload(dataset_context),
-        "plan": plan,
+        "dataset_context": _interpretation_context_payload(dataset_context),
+        "tools": _tool_context_payload(plan),
         "tool_results": tool_results,
         "tool_errors": tool_errors or {},
     }

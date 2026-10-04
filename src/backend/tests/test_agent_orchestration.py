@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import sys
 from pathlib import Path
@@ -249,6 +250,35 @@ def test_orchestrator_plans_executes_interprets_and_persists(
     assert run.results_json["_agent"]["interpretation"]["key_findings"] == [
         "income has missing values"
     ]
+    assert run.results_json["_agent"]["interpretation"]["answer"] == (
+        "The dataset has one missing income value."
+    )
+
+    interpreter_payload = json.loads(
+        interpreter_client.calls[0]["messages"][1]["content"]
+    )
+    assert sorted(interpreter_payload) == [
+        "dataset_context",
+        "question",
+        "tool_errors",
+        "tool_results",
+        "tools",
+    ]
+    assert interpreter_payload["dataset_context"] == {
+        "dataset_id": str(DATASET_ID),
+        "dataset_version_id": str(VERSION_ID),
+        "row_count": 2,
+        "column_count": 3,
+        "active_columns": ["income"],
+    }
+    assert interpreter_payload["tools"] == [
+        {
+            "name": "quality",
+            "arguments": {"high_cardinality_threshold": 0.5},
+        }
+    ]
+    assert "columns" not in interpreter_payload["dataset_context"]
+    assert "plan" not in interpreter_payload
 
     messages = list(
         db_session.scalars(select(Message).order_by(Message.created_at.asc()))
