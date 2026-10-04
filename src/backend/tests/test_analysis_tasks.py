@@ -60,3 +60,26 @@ def test_execute_analysis_run_task_opens_session_and_executes(monkeypatch) -> No
         "analysis_run_id": RUN_ID,
     }
     assert session.closed is True
+
+
+def test_purge_expired_workspaces_task_opens_session_and_purges(monkeypatch) -> None:
+    session = FakeSession()
+    captured: dict[str, object] = {}
+
+    monkeypatch.setattr(analysis_tasks, "SessionLocal", lambda: session)
+
+    def fake_purge_expired_workspaces(db):
+        captured["db"] = db
+        return 2
+
+    monkeypatch.setattr(
+        analysis_tasks,
+        "purge_expired_workspaces",
+        fake_purge_expired_workspaces,
+    )
+
+    result = analysis_tasks.purge_expired_workspaces_task.run()
+
+    assert result == 2
+    assert captured == {"db": session}
+    assert session.closed is True

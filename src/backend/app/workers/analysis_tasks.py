@@ -6,6 +6,7 @@ from uuid import UUID
 from app.core.config import settings
 from app.db.session import SessionLocal
 from app.services.analysis_service import execute_analysis_run
+from app.services.workspace_service import purge_expired_workspaces
 from app.workers.celery_app import celery_app
 
 
@@ -29,3 +30,12 @@ def execute_analysis_run_task(self, analysis_run_id: str) -> str:
         db.close()
 
     return analysis_run_id
+
+
+@celery_app.task(name="app.workers.analysis_tasks.purge_expired_workspaces_task")
+def purge_expired_workspaces_task() -> int:
+    db = SessionLocal()
+    try:
+        return purge_expired_workspaces(db)
+    finally:
+        db.close()

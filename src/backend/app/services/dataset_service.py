@@ -13,6 +13,8 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import settings
 from app.core.exceptions import AppError, ConflictError, NotFoundError
+from app.db.models.analysis_run import AnalysisRun
+from app.db.models.artifact import Artifact
 from app.db.models.dataset import Dataset, DatasetVersion
 from app.services.storage_service import delete_object, upload_bytes
 from app.services.workspace_service import get_workspace
@@ -265,9 +267,17 @@ def delete_dataset(
         )
     )
     storage_keys = [version.storage_key for version in versions]
+    artifact_storage_keys = list(
+        db.scalars(
+            select(Artifact.storage_key)
+            .join(Artifact.analysis_run)
+            .join(AnalysisRun.dataset_version)
+            .where(DatasetVersion.dataset_id == dataset.id)
+        )
+    )
 
     db.delete(dataset)
     db.commit()
 
-    for storage_key in storage_keys:
+    for storage_key in [*storage_keys, *artifact_storage_keys]:
         delete_object(storage_key)

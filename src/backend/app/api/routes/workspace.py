@@ -10,15 +10,18 @@ from app.api.deps import get_current_user, get_db
 from app.db.models.user import User
 from app.schemas.workspace import (
     WorkspaceCreate,
+    WorkspaceConversationSummary,
+    WorkspaceDetailResponse,
     WorkspaceListResponse,
     WorkspaceResponse,
     WorkspaceUpdate,
 )
 from app.services.workspace_service import (
     create_workspace,
-    get_workspace,
+    get_workspace_reopen_detail,
     list_workspaces,
     rename_workspace,
+    restore_workspace,
     schedule_workspace_deletion,
 )
 
@@ -62,19 +65,36 @@ def list_user_workspaces(
     )
 
 
-@router.get("/{workspace_id}", response_model=WorkspaceResponse)
+@router.get("/{workspace_id}", response_model=WorkspaceDetailResponse)
 def get_user_workspace(
     workspace_id: UUID,
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
-) -> WorkspaceResponse:
-    workspace = get_workspace(
+) -> WorkspaceDetailResponse:
+    detail = get_workspace_reopen_detail(
         db=db,
         user_id=current_user.id,
         workspace_id=workspace_id,
     )
 
-    return WorkspaceResponse.model_validate(workspace)
+    return WorkspaceDetailResponse(
+        workspace=WorkspaceResponse.model_validate(detail["workspace"]),
+        datasets=[
+            {
+                "dataset": dataset,
+                "current_version": dataset.current_version,
+            }
+            for dataset in detail["datasets"]
+        ],
+        recent_runs=detail["recent_runs"],
+        conversations=[
+            WorkspaceConversationSummary(
+                conversation=conversation,
+                messages=list(conversation.messages),
+            )
+            for conversation in detail["conversations"]
+        ],
+    )
 
 
 @router.patch("/{workspace_id}", response_model=WorkspaceResponse)
@@ -110,3 +130,18 @@ def delete_user_workspace(
     )
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/{workspace_id}/restore", response_model=WorkspaceResponse)
+def restore_user_workspace(
+    workspace_id: UUID,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> WorkspaceResponse:
+    workspace = restore_workspace(
+        db=db,
+        user_id=current_user.id,
+        workspace_id=workspace_id,
+    )
+
+    return WorkspaceResponse.model_validate(workspace)

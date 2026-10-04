@@ -4,10 +4,15 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.core.exceptions import NotFoundError
+from app.db.models.analysis_run import AnalysisRun
+from app.db.models.artifact import Artifact
+from app.db.models.conversation import Conversation
+from app.db.models.dataset import Dataset, DatasetVersion
 from app.db.models.workspace import Workspace
+from app.services.storage_service import delete_object
 
 DEFAULT_WORKSPACE_TITLE = "Untitled workspace"
 WORKSPACE_RECOVERY_DAYS = 7
@@ -82,6 +87,51 @@ def get_workspace(
         raise NotFoundError("Workspace was not found.")
 
     return workspace
+
+
+def get_workspace_reopen_detail(
+    db: Session,
+    user_id: UUID,
+    workspace_id: UUID,
+) -> dict[str, object]:
+    workspace = get_workspace(
+        db=db,
+        user_id=user_id,
+        workspace_id=workspace_id,
+    )
+
+    datasets = list(
+        db.scalars(
+            select(Dataset)
+            .options(selectinload(Dataset.current_version))
+            .where(Dataset.workspace_id == workspace.id)
+            .order_by(Dataset.created_at.desc())
+        )
+    )
+    recent_runs = list(
+        db.scalars(
+            select(AnalysisRun)
+            .options(selectinload(AnalysisRun.tool_executions))
+            .where(AnalysisRun.workspace_id == workspace.id)
+            .order_by(AnalysisRun.created_at.desc())
+            .limit(10)
+        )
+    )
+    conversations = list(
+        db.scalars(
+            select(Conversation)
+            .options(selectinload(Conversation.messages))
+            .where(Conversation.workspace_id == workspace.id)
+            .order_by(Conversation.updated_at.desc(), Conversation.created_at.desc())
+        )
+    )
+
+    return {
+        "workspace": workspace,
+        "datasets": datasets,
+        "recent_runs": recent_runs,
+        "conversations": conversations,
+    }
 
 
 def rename_workspace(
@@ -161,3 +211,45 @@ def restore_workspace(
     db.commit()
     db.refresh(workspace)
     return workspace
+
+
+def _workspace_storage_keys(db: Session, workspace_id: UUID) -> list[str]:
+    dataset_keys = list(
+        db.scalars(
+            select(DatasetVersion.storage_key)
+            .join(DatasetVersion.dataset)
+            .where(Dataset.workspace_id == workspace_id)
+        )
+    )
+    artifact_keys = list(
+        db.scalars(
+            select(Artifact.storage_key)
+            .join(Artifact.analysis_run)
+            .where(AnalysisRun.workspace_id == workspace_id)
+        )
+    )
+    return [*dataset_keys, *artifact_keys]
+
+
+def purge_expired_workspaces(db: Session) -> int:
+    now = datetime.now(UTC)
+    expired = list(
+        db.scalars(
+            select(Workspace).where(
+                Workspace.scheduled_deletion_at.is_not(None),
+                Workspace.scheduled_deletion_at <= now,
+            )
+        )
+    )
+
+    purged = 0
+    for workspace in expired:
+        storage_keys = _workspace_storage_keys(db, workspace.id)
+        db.delete(workspace)
+        db.commit()
+        purged += 1
+
+        for storage_key in storage_keys:
+            delete_object(storage_key)
+
+    return purged

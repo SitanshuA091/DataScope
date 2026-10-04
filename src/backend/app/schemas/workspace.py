@@ -5,6 +5,10 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.analysis import AnalysisRunResponse
+from app.schemas.conversation import ConversationResponse, MessageResponse
+from app.schemas.dataset import DatasetListItem
+
 
 class WorkspaceCreate(BaseModel):
     title: str | None = Field(default=None, max_length=255)
@@ -29,3 +33,15 @@ class WorkspaceResponse(BaseModel):
 
 class WorkspaceListResponse(BaseModel):
     workspaces: list[WorkspaceResponse]
+
+
+class WorkspaceConversationSummary(BaseModel):
+    conversation: ConversationResponse
+    messages: list[MessageResponse] = Field(default_factory=list)
+
+
+class WorkspaceDetailResponse(BaseModel):
+    workspace: WorkspaceResponse
+    datasets: list[DatasetListItem] = Field(default_factory=list)
+    recent_runs: list[AnalysisRunResponse] = Field(default_factory=list)
+    conversations: list[WorkspaceConversationSummary] = Field(default_factory=list)

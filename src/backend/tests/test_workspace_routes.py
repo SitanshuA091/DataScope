@@ -118,15 +118,24 @@ def test_list_workspaces_scopes_to_current_user(monkeypatch) -> None:
     assert response.json()["workspaces"][0]["id"] == str(WORKSPACE_ID)
 
 
-def test_open_workspace_scopes_to_current_user(monkeypatch) -> None:
+def test_open_workspace_returns_reopen_detail(monkeypatch) -> None:
     captured: dict[str, object] = {}
 
-    def fake_get_workspace(db, user_id, workspace_id):
+    def fake_get_workspace_reopen_detail(db, user_id, workspace_id):
         captured["user_id"] = user_id
         captured["workspace_id"] = workspace_id
-        return _workspace(workspace_id=workspace_id)
+        return {
+            "workspace": _workspace(workspace_id=workspace_id),
+            "datasets": [],
+            "recent_runs": [],
+            "conversations": [],
+        }
 
-    monkeypatch.setattr(workspace_routes, "get_workspace", fake_get_workspace)
+    monkeypatch.setattr(
+        workspace_routes,
+        "get_workspace_reopen_detail",
+        fake_get_workspace_reopen_detail,
+    )
 
     response = TestClient(app).get(f"/api/v1/workspaces/{WORKSPACE_ID}")
 
@@ -135,6 +144,11 @@ def test_open_workspace_scopes_to_current_user(monkeypatch) -> None:
         "user_id": USER_ID,
         "workspace_id": WORKSPACE_ID,
     }
+    body = response.json()
+    assert body["workspace"]["id"] == str(WORKSPACE_ID)
+    assert body["datasets"] == []
+    assert body["recent_runs"] == []
+    assert body["conversations"] == []
 
 
 def test_open_workspace_returns_404_when_not_owned(monkeypatch) -> None:
@@ -143,7 +157,11 @@ def test_open_workspace_returns_404_when_not_owned(monkeypatch) -> None:
         assert user_id != OTHER_USER_ID
         raise NotFoundError("Workspace was not found.")
 
-    monkeypatch.setattr(workspace_routes, "get_workspace", fake_get_workspace)
+    monkeypatch.setattr(
+        workspace_routes,
+        "get_workspace_reopen_detail",
+        fake_get_workspace,
+    )
 
     response = TestClient(app).get(f"/api/v1/workspaces/{uuid4()}")
 
@@ -198,6 +216,30 @@ def test_delete_workspace_scopes_to_current_user(monkeypatch) -> None:
 
     assert response.status_code == 204
     assert response.content == b""
+    assert captured == {
+        "user_id": USER_ID,
+        "workspace_id": WORKSPACE_ID,
+    }
+
+
+def test_restore_workspace_scopes_to_current_user(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_restore_workspace(db, user_id, workspace_id):
+        captured["user_id"] = user_id
+        captured["workspace_id"] = workspace_id
+        return _workspace(workspace_id=workspace_id)
+
+    monkeypatch.setattr(
+        workspace_routes,
+        "restore_workspace",
+        fake_restore_workspace,
+    )
+
+    response = TestClient(app).post(f"/api/v1/workspaces/{WORKSPACE_ID}/restore")
+
+    assert response.status_code == 200
+    assert response.json()["id"] == str(WORKSPACE_ID)
     assert captured == {
         "user_id": USER_ID,
         "workspace_id": WORKSPACE_ID,
