@@ -36,6 +36,7 @@ from app.api.routes import analysis as analysis_routes
 from app.core.exceptions import ConflictError, NotFoundError
 from app.db.base import Base
 from app.db.models.analysis_run import AnalysisRun
+from app.db.models.artifact import Artifact
 from app.db.models.dataset import Dataset, DatasetVersion
 from app.db.models.tool_execution import ToolExecution
 from app.db.models.user import User
@@ -418,16 +419,18 @@ def test_create_analysis_run_persists_and_executes_tools(
         {"name": "column", "arguments": {"columns": ["age"]}},
     ]
     assert run.results_json["quality"]["rows"] == 2
-    assert run.results_json["column"]["arguments"] == {"columns": ["age"]}
+    assert run.results_json["column"]["arguments"]["columns"] == ["age"]
+    assert run.results_json["column"]["arguments"]["include_plots"] is True
     assert run.error_json is None
     assert [execution.status for execution in run.tool_executions] == [
         "completed",
         "completed",
     ]
-    assert calls == [
-        ("quality", {"high_cardinality_threshold": 0.5}),
-        ("column", {"columns": ["age"]}),
-    ]
+    assert calls[0] == ("quality", {"high_cardinality_threshold": 0.5})
+    assert calls[1][0] == "column"
+    assert calls[1][1]["columns"] == ["age"]
+    assert calls[1][1]["include_plots"] is True
+    assert "artifact_dir" in calls[1][1]
 
     persisted_executions = list(
         db_session.scalars(
@@ -635,6 +638,69 @@ def test_submit_analysis_run_queues_plot_request(
     assert execution_mode == "queued"
     assert run.status == "pending"
     assert run.timings_json["celery_task_id"] == "task-plot"
+
+
+def test_execute_analysis_run_uploads_and_persists_plot_artifacts(
+    db_session,
+    monkeypatch,
+) -> None:
+    captured_tool_kwargs: dict[str, object] = {}
+    uploaded: dict[str, object] = {}
+
+    def fake_run_tool(name, frame, **kwargs):
+        captured_tool_kwargs.update(kwargs)
+        artifact_path = Path(str(kwargs["artifact_dir"])) / "plot.png"
+        artifact_path.write_bytes(b"png-bytes")
+        return {
+            "tool": name,
+            "artifacts": [
+                {
+                    "kind": "histogram",
+                    "title": "Age distribution",
+                    "path": str(artifact_path),
+                    "columns": ["age"],
+                    "format": "png",
+                }
+            ],
+        }
+
+    def fake_upload_bytes(*, storage_key, content, content_type):
+        uploaded["storage_key"] = storage_key
+        uploaded["content"] = content
+        uploaded["content_type"] = content_type
+        return storage_key
+
+    monkeypatch.setattr(analysis_service, "download_bytes", lambda key: CSV_BYTES)
+    monkeypatch.setattr(analysis_service, "run_tool", fake_run_tool)
+    monkeypatch.setattr(analysis_service, "upload_bytes", fake_upload_bytes)
+    monkeypatch.setattr(analysis_service, "get_cached_result", lambda cache_key: None)
+    monkeypatch.setattr(analysis_service, "set_cached_result", lambda *args: None)
+
+    run = analysis_service.create_analysis_run(
+        db=db_session,
+        user_id=USER_ID,
+        dataset_id=DATASET_ID,
+        tools=[{"name": "high_level", "arguments": {}}],
+        include_plots=True,
+    )
+
+    artifact = db_session.scalar(
+        select(Artifact).where(Artifact.analysis_run_id == run.id)
+    )
+
+    assert run.status == "completed"
+    assert captured_tool_kwargs["include_plots"] is True
+    assert "artifact_dir" in captured_tool_kwargs
+    assert artifact is not None
+    assert artifact.artifact_type == "histogram"
+    assert artifact.mime_type == "image/png"
+    assert artifact.storage_key == uploaded["storage_key"]
+    assert uploaded["content"] == b"png-bytes"
+    assert uploaded["content_type"] == "image/png"
+    payload = run.results_json["high_level"]["artifacts"][0]
+    assert payload["storage_key"] == artifact.storage_key
+    assert payload["mime_type"] == "image/png"
+    assert "path" not in payload
 
 
 def test_submit_analysis_run_queues_relationship_request(

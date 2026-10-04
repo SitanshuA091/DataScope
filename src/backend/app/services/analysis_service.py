@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from io import BytesIO
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from time import perf_counter
 from typing import Any
 from uuid import UUID
@@ -25,7 +27,7 @@ from app.services.cache_service import (
 )
 from app.services.dataset_service import get_dataset_overview
 from app.services.event_service import publish_analysis_event
-from app.services.storage_service import download_bytes
+from app.services.storage_service import download_bytes, upload_bytes
 
 STATUS_PENDING = "pending"
 STATUS_RUNNING = "running"
@@ -35,6 +37,7 @@ STATUS_CANCELLED = "cancelled"
 TERMINAL_STATUSES = {STATUS_COMPLETED, STATUS_FAILED, STATUS_CANCELLED}
 EXECUTION_MODE_INLINE = "inline"
 EXECUTION_MODE_QUEUED = "queued"
+PLOT_MIME_TYPE = "image/png"
 
 
 class AnalysisValidationError(AppError):
@@ -107,11 +110,12 @@ def _combined_cache_key(
     *,
     dataset_version_id: UUID,
     tools: list[dict[str, Any]],
+    include_plots: bool = False,
 ) -> str:
     return build_analysis_cache_key(
         str(dataset_version_id),
         "run",
-        {"tools": tools},
+        {"tools": tools, "include_plots": include_plots},
     )
 
 
@@ -126,6 +130,18 @@ def _tool_cache_key(
         tool_name,
         tool_arguments,
     )
+
+
+def _cache_arguments(
+    *,
+    tool_name: str,
+    tool_arguments: dict[str, Any],
+    include_plots: bool,
+) -> dict[str, Any]:
+    normalized = dict(tool_arguments)
+    if include_plots and _tool_supports_plots(tool_name):
+        normalized["include_plots"] = True
+    return normalized
 
 
 def _set_run_progress(
@@ -210,6 +226,87 @@ def _mark_execution_cached(
         "cache_source": source,
     }
     execution.completed_at = completed_at
+
+
+def _tool_supports_plots(tool_name: str) -> bool:
+    tool = TOOL_REGISTRY.get(tool_name)
+    return tool is not None and "include_plots" in tool.arguments
+
+
+def _artifact_storage_key(
+    *,
+    run: AnalysisRun,
+    execution: ToolExecution,
+    path: Path,
+) -> str:
+    return (
+        f"artifacts/{run.workspace_id}/{run.id}/"
+        f"{execution.id}/{path.name}"
+    )
+
+
+def _artifact_type(payload: dict[str, Any]) -> str:
+    return str(
+        payload.get("artifact_type")
+        or payload.get("kind")
+        or payload.get("type")
+        or "plot"
+    )
+
+
+def _upload_and_persist_result_artifacts(
+    *,
+    db: Session,
+    run: AnalysisRun,
+    execution: ToolExecution,
+    result: dict[str, Any],
+) -> dict[str, Any]:
+    payloads = result.get("artifacts")
+    if not isinstance(payloads, list):
+        return result
+
+    uploaded_payloads: list[dict[str, Any]] = []
+    for payload in payloads:
+        if not isinstance(payload, dict):
+            uploaded_payloads.append(payload)
+            continue
+
+        local_path_value = payload.get("path")
+        local_path = Path(str(local_path_value)) if local_path_value else None
+        if local_path is None or not local_path.is_file():
+            uploaded_payloads.append(dict(payload))
+            continue
+
+        storage_key = _artifact_storage_key(
+            run=run,
+            execution=execution,
+            path=local_path,
+        )
+        upload_bytes(
+            storage_key=storage_key,
+            content=local_path.read_bytes(),
+            content_type=PLOT_MIME_TYPE,
+        )
+
+        artifact_type = _artifact_type(payload)
+        db.add(
+            Artifact(
+                analysis_run_id=run.id,
+                tool_execution_id=execution.id,
+                artifact_type=artifact_type,
+                storage_key=storage_key,
+                mime_type=PLOT_MIME_TYPE,
+            )
+        )
+
+        uploaded = dict(payload)
+        uploaded.pop("path", None)
+        uploaded["artifact_type"] = artifact_type
+        uploaded["storage_key"] = storage_key
+        uploaded["mime_type"] = PLOT_MIME_TYPE
+        uploaded_payloads.append(uploaded)
+
+    return {**result, "artifacts": uploaded_payloads}
 
 
 def _get_analysis_run_for_user(
@@ -337,7 +434,8 @@ def list_analysis_artifacts(
         }
         for artifact in persisted
     ]
-    artifacts.extend(_extract_artifacts_from_results(run))
+    if not artifacts:
+        artifacts.extend(_extract_artifacts_from_results(run))
     return artifacts
 
 
@@ -409,6 +507,7 @@ def create_analysis_run_record(
         cache_key=_combined_cache_key(
             dataset_version_id=dataset_version.id,
             tools=selected_tools,
+            include_plots=include_plots,
         ),
         cache_hit=False,
         progress_stage="queued",
@@ -427,7 +526,11 @@ def create_analysis_run_record(
                 cache_key=_tool_cache_key(
                     dataset_version_id=dataset_version.id,
                     tool_name=selected["name"],
-                    tool_arguments=selected["arguments"],
+                    tool_arguments=_cache_arguments(
+                        tool_name=selected["name"],
+                        tool_arguments=selected["arguments"],
+                        include_plots=include_plots,
+                    ),
                 ),
                 cache_hit=False,
             )
@@ -617,101 +720,121 @@ def execute_analysis_run(
     total_tools = max(len(run.tool_executions), 1)
     cache_hits = 0
     source_run_id: UUID | None = None
+    include_plots = bool((run.request_json or {}).get("include_plots"))
 
-    for index, execution in enumerate(run.tool_executions, start=1):
-        if run.status == STATUS_CANCELLED:
-            break
+    with TemporaryDirectory(prefix=f"analysis-{run.id}-") as artifact_dir:
+        for index, execution in enumerate(run.tool_executions, start=1):
+            if run.status == STATUS_CANCELLED:
+                break
 
-        execution.status = STATUS_RUNNING
-        execution.started_at = _now()
-        stage = f"running {execution.tool_name}"
-        run.progress_stage = stage
-        run.progress_percent = min(95, 10 + int(((index - 1) / total_tools) * 80))
-        db.commit()
-        _publish_run_event(
-            run,
-            status=STATUS_RUNNING,
-            event_type="analysis.progress",
-            stage=stage,
-            progress_percent=run.progress_percent,
-        )
-
-        if execution.cache_key is None:
-            execution.cache_key = _tool_cache_key(
-                dataset_version_id=run.dataset_version_id,
-                tool_name=execution.tool_name,
-                tool_arguments=execution.arguments_json,
+            execution.status = STATUS_RUNNING
+            execution.started_at = _now()
+            stage = f"running {execution.tool_name}"
+            run.progress_stage = stage
+            run.progress_percent = min(
+                95,
+                10 + int(((index - 1) / total_tools) * 80),
             )
-
-        cached_result = get_cached_result(execution.cache_key)
-        if cached_result is not None:
-            completed = _now()
-            _mark_execution_cached(
-                execution=execution,
-                result=cached_result,
-                completed_at=completed,
-                source="redis",
-            )
-            results[execution.tool_name] = cached_result
-            cache_hits += 1
             db.commit()
-            continue
-
-        cached_execution = _get_completed_cached_execution(
-            db=db,
-            cache_key=execution.cache_key,
-            current_execution_id=execution.id,
-        )
-        if cached_execution is not None and cached_execution.result_json is not None:
-            completed = _now()
-            _mark_execution_cached(
-                execution=execution,
-                result=cached_execution.result_json,
-                completed_at=completed,
-                source="postgres",
-                source_execution_id=cached_execution.id,
+            _publish_run_event(
+                run,
+                status=STATUS_RUNNING,
+                event_type="analysis.progress",
+                stage=stage,
+                progress_percent=run.progress_percent,
             )
-            results[execution.tool_name] = cached_execution.result_json
-            cache_hits += 1
-            source_run_id = cached_execution.analysis_run_id
-            set_cached_result(execution.cache_key, cached_execution.result_json)
-            db.commit()
-            continue
 
-        tool_start = perf_counter()
-        try:
-            result = run_tool(
-                execution.tool_name,
-                frame,
-                **execution.arguments_json,
+            if execution.cache_key is None:
+                execution.cache_key = _tool_cache_key(
+                    dataset_version_id=run.dataset_version_id,
+                    tool_name=execution.tool_name,
+                    tool_arguments=_cache_arguments(
+                        tool_name=execution.tool_name,
+                        tool_arguments=execution.arguments_json,
+                        include_plots=include_plots,
+                    ),
+                )
+
+            cached_result = get_cached_result(execution.cache_key)
+            if cached_result is not None:
+                completed = _now()
+                _mark_execution_cached(
+                    execution=execution,
+                    result=cached_result,
+                    completed_at=completed,
+                    source="redis",
+                )
+                results[execution.tool_name] = cached_result
+                cache_hits += 1
+                db.commit()
+                continue
+
+            cached_execution = _get_completed_cached_execution(
+                db=db,
+                cache_key=execution.cache_key,
+                current_execution_id=execution.id,
             )
-        except Exception as exc:  # noqa: BLE001 - one tool failure should not hide run state.
-            completed = _now()
-            execution.status = STATUS_FAILED
-            execution.error_json = _error_payload(exc)
-            execution.timings_json = {
-                "duration_ms": round((perf_counter() - tool_start) * 1000, 3),
-            }
-            execution.completed_at = completed
-            errors.append(
-                {
-                    "tool": execution.tool_name,
-                    "error": execution.error_json,
+            if cached_execution is not None and cached_execution.result_json is not None:
+                completed = _now()
+                _mark_execution_cached(
+                    execution=execution,
+                    result=cached_execution.result_json,
+                    completed_at=completed,
+                    source="postgres",
+                    source_execution_id=cached_execution.id,
+                )
+                results[execution.tool_name] = cached_execution.result_json
+                cache_hits += 1
+                source_run_id = cached_execution.analysis_run_id
+                set_cached_result(execution.cache_key, cached_execution.result_json)
+                db.commit()
+                continue
+
+            tool_start = perf_counter()
+            try:
+                tool_arguments = dict(execution.arguments_json)
+                if include_plots and _tool_supports_plots(execution.tool_name):
+                    tool_arguments["include_plots"] = True
+                    tool_arguments["artifact_dir"] = artifact_dir
+
+                result = run_tool(
+                    execution.tool_name,
+                    frame,
+                    **tool_arguments,
+                )
+                result = _upload_and_persist_result_artifacts(
+                    db=db,
+                    run=run,
+                    execution=execution,
+                    result=result,
+                )
+            except Exception as exc:  # noqa: BLE001 - one tool failure should not hide run state.
+                completed = _now()
+                execution.status = STATUS_FAILED
+                execution.error_json = _error_payload(exc)
+                execution.timings_json = {
+                    "duration_ms": round((perf_counter() - tool_start) * 1000, 3),
                 }
-            )
-        else:
-            completed = _now()
-            execution.status = STATUS_COMPLETED
-            execution.result_json = result
-            execution.error_json = None
-            execution.timings_json = {
-                "duration_ms": round((perf_counter() - tool_start) * 1000, 3),
-            }
-            execution.completed_at = completed
-            results[execution.tool_name] = result
-            set_cached_result(execution.cache_key, result)
+                execution.completed_at = completed
+                errors.append(
+                    {
+                        "tool": execution.tool_name,
+                        "error": execution.error_json,
+                    }
+                )
+            else:
+                completed = _now()
+                execution.status = STATUS_COMPLETED
+                execution.result_json = result
+                execution.error_json = None
+                execution.timings_json = {
+                    "duration_ms": round((perf_counter() - tool_start) * 1000, 3),
+                }
+                execution.completed_at = completed
+                results[execution.tool_name] = result
+                set_cached_result(execution.cache_key, result)
 
-        db.commit()
+            db.commit()
 
     completed = _now()
     run.results_json = results
