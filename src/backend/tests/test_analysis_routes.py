@@ -64,6 +64,9 @@ def _execution() -> SimpleNamespace:
         result_json={"tool": "quality"},
         error_json=None,
         timings_json={"duration_ms": 1.5},
+        cache_key="analysis:test",
+        cache_hit=False,
+        source_execution_id=None,
         created_at=NOW,
         started_at=NOW,
         completed_at=NOW,
@@ -81,6 +84,11 @@ def _run(*, status: str = "completed") -> SimpleNamespace:
         results_json={"quality": {"tool": "quality"}},
         error_json=None,
         timings_json={"duration_ms": 2.0},
+        cache_key="analysis:run",
+        cache_hit=False,
+        source_run_id=None,
+        progress_stage="completed",
+        progress_percent=100,
         created_at=NOW,
         started_at=NOW,
         completed_at=NOW,
@@ -283,6 +291,79 @@ def test_cancel_analysis_run_scopes_to_current_user(monkeypatch) -> None:
     assert response.json()["status"] == "cancelled"
 
 
+def test_list_analysis_run_history_scopes_to_current_user(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_list_analysis_runs_for_dataset(db, user_id, dataset_id):
+        captured["user_id"] = user_id
+        captured["dataset_id"] = dataset_id
+        return [_run()]
+
+    from app.api.routes import results as results_routes
+
+    monkeypatch.setattr(
+        results_routes,
+        "list_analysis_runs_for_dataset",
+        fake_list_analysis_runs_for_dataset,
+    )
+
+    response = TestClient(app).get(
+        f"/api/v1/datasets/{DATASET_ID}/analysis-runs"
+    )
+
+    assert response.status_code == 200
+    assert captured == {"user_id": USER_ID, "dataset_id": DATASET_ID}
+    assert response.json()["analysis_runs"][0]["id"] == str(RUN_ID)
+
+
+def test_get_analysis_results_returns_metrics_and_explanation(monkeypatch) -> None:
+    from app.api.routes import results as results_routes
+
+    monkeypatch.setattr(
+        results_routes,
+        "get_analysis_results",
+        lambda db, user_id, analysis_run_id: {
+            "run_id": analysis_run_id,
+            "status": "completed",
+            "metrics": {"quality": {"rows": 2}},
+            "explanation": {"answer": "One missing income value."},
+            "artifacts": [],
+            "errors": None,
+            "cache_hit": False,
+            "source_run_id": None,
+        },
+    )
+
+    response = TestClient(app).get(f"/api/v1/analysis-runs/{RUN_ID}/results")
+
+    assert response.status_code == 200
+    assert response.json()["metrics"] == {"quality": {"rows": 2}}
+    assert response.json()["explanation"]["answer"] == "One missing income value."
+
+
+def test_get_analysis_artifacts_returns_generated_artifacts(monkeypatch) -> None:
+    from app.api.routes import results as results_routes
+
+    monkeypatch.setattr(
+        results_routes,
+        "list_analysis_artifacts",
+        lambda db, user_id, analysis_run_id: [
+            {
+                "artifact_type": "plot",
+                "storage_key": "plots/run.png",
+                "mime_type": "image/png",
+                "tool_name": "quality",
+                "metadata": {"title": "Missingness"},
+            }
+        ],
+    )
+
+    response = TestClient(app).get(f"/api/v1/analysis-runs/{RUN_ID}/artifacts")
+
+    assert response.status_code == 200
+    assert response.json()["artifacts"][0]["storage_key"] == "plots/run.png"
+
+
 def test_get_analysis_run_returns_404_when_not_owned(monkeypatch) -> None:
     def fake_get_analysis_run(db, user_id, analysis_run_id):
         assert user_id == USER_ID
@@ -380,6 +461,128 @@ def test_submit_analysis_run_executes_small_single_tool_inline(
     assert execution_mode == "inline"
     assert run.status == "completed"
     assert run.results_json == {"quality": {"tool": "quality", "rows": 2}}
+
+
+def test_execute_analysis_run_reuses_redis_cached_tool_result(
+    db_session,
+    monkeypatch,
+) -> None:
+    run = AnalysisRun(
+        workspace_id=WORKSPACE_ID,
+        dataset_version_id=VERSION_ID,
+        request_json={"dataset_id": str(DATASET_ID)},
+        selected_tools_json=[{"name": "quality", "arguments": {}}],
+        status="pending",
+    )
+    db_session.add(run)
+    db_session.flush()
+    db_session.add(
+        ToolExecution(
+            analysis_run_id=run.id,
+            tool_name="quality",
+            arguments_json={},
+            status="pending",
+            cache_key="analysis:quality",
+        )
+    )
+    db_session.commit()
+
+    monkeypatch.setattr(analysis_service, "download_bytes", lambda key: CSV_BYTES)
+    monkeypatch.setattr(
+        analysis_service,
+        "get_cached_result",
+        lambda cache_key: {"tool": "quality", "cached": True},
+    )
+
+    def fail_run_tool(name, frame, **kwargs):
+        raise AssertionError("cached executions should not run tools")
+
+    monkeypatch.setattr(analysis_service, "run_tool", fail_run_tool)
+
+    executed = analysis_service.execute_analysis_run(
+        db=db_session,
+        analysis_run_id=run.id,
+    )
+
+    assert executed.status == "completed"
+    assert executed.cache_hit is True
+    assert executed.results_json == {"quality": {"tool": "quality", "cached": True}}
+    assert executed.tool_executions[0].cache_hit is True
+    assert executed.tool_executions[0].timings_json["cache_source"] == "redis"
+
+
+def test_execute_analysis_run_reuses_postgres_completed_tool_result(
+    db_session,
+    monkeypatch,
+) -> None:
+    source_run = AnalysisRun(
+        workspace_id=WORKSPACE_ID,
+        dataset_version_id=VERSION_ID,
+        request_json={"dataset_id": str(DATASET_ID)},
+        selected_tools_json=[{"name": "quality", "arguments": {}}],
+        status="completed",
+        results_json={"quality": {"tool": "quality", "source": "postgres"}},
+        progress_stage="completed",
+        progress_percent=100,
+        completed_at=NOW,
+    )
+    target_run = AnalysisRun(
+        workspace_id=WORKSPACE_ID,
+        dataset_version_id=VERSION_ID,
+        request_json={"dataset_id": str(DATASET_ID)},
+        selected_tools_json=[{"name": "quality", "arguments": {}}],
+        status="pending",
+    )
+    db_session.add_all([source_run, target_run])
+    db_session.flush()
+    source_execution = ToolExecution(
+        analysis_run_id=source_run.id,
+        tool_name="quality",
+        arguments_json={},
+        status="completed",
+        result_json={"tool": "quality", "source": "postgres"},
+        cache_key="analysis:quality",
+        completed_at=NOW,
+    )
+    target_execution = ToolExecution(
+        analysis_run_id=target_run.id,
+        tool_name="quality",
+        arguments_json={},
+        status="pending",
+        cache_key="analysis:quality",
+    )
+    db_session.add_all([source_execution, target_execution])
+    db_session.commit()
+
+    monkeypatch.setattr(analysis_service, "download_bytes", lambda key: CSV_BYTES)
+    monkeypatch.setattr(analysis_service, "get_cached_result", lambda cache_key: None)
+    cached_writes: dict[str, dict[str, object]] = {}
+    monkeypatch.setattr(
+        analysis_service,
+        "set_cached_result",
+        lambda cache_key, result: cached_writes.setdefault(cache_key, result),
+    )
+
+    def fail_run_tool(name, frame, **kwargs):
+        raise AssertionError("postgres cache hits should not run tools")
+
+    monkeypatch.setattr(analysis_service, "run_tool", fail_run_tool)
+
+    executed = analysis_service.execute_analysis_run(
+        db=db_session,
+        analysis_run_id=target_run.id,
+    )
+
+    assert executed.status == "completed"
+    assert executed.cache_hit is True
+    assert executed.source_run_id == source_run.id
+    assert executed.results_json == {
+        "quality": {"tool": "quality", "source": "postgres"}
+    }
+    assert executed.tool_executions[0].source_execution_id == source_execution.id
+    assert cached_writes == {
+        "analysis:quality": {"tool": "quality", "source": "postgres"}
+    }
 
 
 def test_submit_analysis_run_queues_multi_tool_request(

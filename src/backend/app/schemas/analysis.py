@@ -37,6 +37,9 @@ class ToolExecutionResponse(BaseModel):
     result_json: dict[str, Any] | None
     error_json: dict[str, Any] | None
     timings_json: dict[str, Any] | None
+    cache_key: str | None = None
+    cache_hit: bool = False
+    source_execution_id: UUID | None = None
     created_at: datetime
     started_at: datetime | None
     completed_at: datetime | None
@@ -54,6 +57,11 @@ class AnalysisRunResponse(BaseModel):
     results_json: dict[str, Any] | None
     error_json: dict[str, Any] | None
     timings_json: dict[str, Any] | None
+    cache_key: str | None = None
+    cache_hit: bool = False
+    source_run_id: UUID | None = None
+    progress_stage: str | None = None
+    progress_percent: int | None = None
     created_at: datetime
     started_at: datetime | None
     completed_at: datetime | None

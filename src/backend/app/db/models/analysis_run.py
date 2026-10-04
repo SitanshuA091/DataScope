@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import JSON, DateTime, ForeignKey, String, func
+from sqlalchemy import Boolean, JSON, DateTime, ForeignKey, String, func
 from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -68,6 +68,34 @@ class AnalysisRun(Base):
 
     timings_json: Mapped[dict[str, Any] | None] = mapped_column(
         JSON,
+        nullable=True,
+    )
+
+    cache_key: Mapped[str | None] = mapped_column(
+        String(255),
+        index=True,
+        nullable=True,
+    )
+
+    cache_hit: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+    )
+
+    source_run_id: Mapped[UUID | None] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("analysis_runs.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+
+    progress_stage: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    progress_percent: Mapped[int | None] = mapped_column(
         nullable=True,
     )
 
