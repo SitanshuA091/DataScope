@@ -1,7 +1,16 @@
 ## Combines all API route modules under /api/v1.
 from fastapi import APIRouter
 
-from app.api.routes import analysis, auth, conversation, datasets, health, workspace
+from app.api.routes import (
+    analysis,
+    auth,
+    conversation,
+    datasets,
+    health,
+    results,
+    websocket,
+    workspace,
+)
 
 api_router = APIRouter()
 
@@ -10,4 +19,6 @@ api_router.include_router(analysis.router)
 api_router.include_router(conversation.router)
 api_router.include_router(datasets.router)
 api_router.include_router(health.router)
+api_router.include_router(results.router)
+api_router.include_router(websocket.router)
 api_router.include_router(workspace.router)

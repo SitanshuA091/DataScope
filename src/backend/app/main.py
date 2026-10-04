@@ -41,10 +41,10 @@ app = FastAPI(
 # Google login -> Google callback -> application session creation.
 app.add_middleware(
     SessionMiddleware,
-    secret_key=settings.session_secret_key,
+    secret_key=settings.session_secret_key.get_secret_value(),
     session_cookie=settings.session_cookie_name,
     max_age=settings.session_max_age_seconds,
-    same_site="lax",
+    same_site=settings.session_same_site,
     https_only=settings.is_production,
 )
 
