@@ -1,11 +1,32 @@
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { useAnalysisRunActions } from "@/hooks/use-analysis-run";
 import { formatDateTime } from "@/lib/formatters";
 import type { AnalysisRun } from "@/types/analysis";
 import { ResultMetrics } from "./result-metrics";
 import { RetryAnalysisButton } from "./retry-analysis-button";
 import { RunStatus } from "./run-status";
 
-export function AnalysisCard({ run }: { run: AnalysisRun }) {
+export function AnalysisCard({
+  run,
+  onChanged,
+}: {
+  run: AnalysisRun;
+  onChanged?: () => void;
+}) {
+  const { retryRun, cancelRun, isMutating, error } = useAnalysisRunActions();
+  const isActive = ["pending", "running"].includes(run.status);
+
+  async function handleRetry() {
+    await retryRun(run.id);
+    onChanged?.();
+  }
+
+  async function handleCancel() {
+    await cancelRun(run.id);
+    onChanged?.();
+  }
+
   return (
     <Card className="p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -27,8 +48,18 @@ export function AnalysisCard({ run }: { run: AnalysisRun }) {
           {JSON.stringify(run.error_json)}
         </p>
       ) : null}
-      <div className="mt-4 flex justify-end">
-        <RetryAnalysisButton />
+      {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
+      <div className="mt-4 flex justify-end gap-2">
+        {isActive ? (
+          <Button disabled={isMutating} onClick={handleCancel} variant="secondary">
+            {isMutating ? "Cancelling..." : "Cancel"}
+          </Button>
+        ) : null}
+        <RetryAnalysisButton
+          disabled={isActive}
+          isRetrying={isMutating && !isActive}
+          onRetry={handleRetry}
+        />
       </div>
     </Card>
   );

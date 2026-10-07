@@ -4,43 +4,12 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useAnalysisRun } from "@/hooks/use-analysis-run";
+import { useAnalysisTools } from "@/hooks/use-analysis-tools";
 import type { ToolSelection } from "@/types/analysis";
 
-type ToolOption = {
-  id: string;
-  label: string;
-  detail: string;
-  arguments?: Record<string, unknown>;
-};
-
-const toolOptions: ToolOption[] = [
-  {
-    id: "schema_profile",
-    label: "Schema profile",
-    detail: "Column types, nullability, row and column readiness.",
-  },
-  {
-    id: "missingness_report",
-    label: "Missingness report",
-    detail: "Missing values by column and possible remediation targets.",
-  },
-  {
-    id: "outlier_scan",
-    label: "Outlier scan",
-    detail: "Numeric outliers and records that may distort analysis.",
-  },
-  {
-    id: "correlation_scan",
-    label: "Correlation scan",
-    detail: "Pairwise numeric relationships and strong associations.",
-  },
-  {
-    id: "segment_summary",
-    label: "Segment summary",
-    detail: "Grouped metrics for category columns such as region or stage.",
-    arguments: { group_by: "region" },
-  },
-];
+function formatToolName(name: string) {
+  return name.replaceAll("_", " ");
+}
 
 export function DeterministicToolPanel({
   datasetId,
@@ -50,26 +19,30 @@ export function DeterministicToolPanel({
   onSubmitted: () => void;
 }) {
   const [selectedTools, setSelectedTools] = useState<Set<string>>(
-    () => new Set(["schema_profile", "missingness_report"]),
+    () => new Set(["high_level", "quality"]),
   );
   const [includePlots, setIncludePlots] = useState(true);
   const [question, setQuestion] = useState(
     "Prepare this dataset for analysis and flag quality risks.",
   );
   const { submitAnalysis, isSubmitting, error } = useAnalysisRun(datasetId);
+  const {
+    tools: availableTools,
+    isLoading: isLoadingTools,
+    error: toolsError,
+  } = useAnalysisTools();
 
   const tools = useMemo<ToolSelection[]>(
     () =>
-      toolOptions
-        .filter((tool) => selectedTools.has(tool.id))
+      availableTools
+        .filter((tool) => selectedTools.has(tool.name))
         .map((tool) => ({
-          name: tool.id,
+          name: tool.name,
           arguments: {
-            ...tool.arguments,
             question: question.trim(),
           },
         })),
-    [question, selectedTools],
+    [availableTools, question, selectedTools],
   );
 
   function toggleTool(toolId: string) {
@@ -117,25 +90,40 @@ export function DeterministicToolPanel({
         </div>
       </div>
 
-      <div className="grid gap-0 divide-y divide-slate-100 lg:grid-cols-5 lg:divide-x lg:divide-y-0">
-        {toolOptions.map((tool) => (
+      <div className="grid gap-0 divide-y divide-slate-100 lg:grid-cols-4 lg:divide-x lg:divide-y-0">
+        {isLoadingTools ? (
+          <p className="p-5 text-sm text-slate-600 lg:col-span-4">
+            Loading backend tool registry...
+          </p>
+        ) : null}
+        {toolsError ? (
+          <p className="p-5 text-sm text-red-600 lg:col-span-4">
+            {toolsError}
+          </p>
+        ) : null}
+        {!isLoadingTools && !toolsError && availableTools.length === 0 ? (
+          <p className="p-5 text-sm text-slate-600 lg:col-span-4">
+            No analysis tools are available from the backend.
+          </p>
+        ) : null}
+        {availableTools.map((tool) => (
           <label
             className="flex min-h-32 cursor-pointer flex-col gap-3 p-4 transition hover:bg-slate-50"
-            key={tool.id}
+            key={tool.name}
           >
             <span className="flex items-start gap-3">
               <input
-                checked={selectedTools.has(tool.id)}
+                checked={selectedTools.has(tool.name)}
                 className="mt-1 h-4 w-4 rounded border-slate-300"
-                onChange={() => toggleTool(tool.id)}
+                onChange={() => toggleTool(tool.name)}
                 type="checkbox"
               />
               <span>
                 <span className="block text-sm font-semibold text-slate-950">
-                  {tool.label}
+                  {formatToolName(tool.name)}
                 </span>
                 <span className="mt-1 block text-xs leading-5 text-slate-600">
-                  {tool.detail}
+                  {tool.description}
                 </span>
               </span>
             </span>

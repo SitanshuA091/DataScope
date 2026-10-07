@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { use, useState } from "react";
 import { WorkspaceShell } from "@/components/layout/workspace-shell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -10,8 +10,9 @@ import type { Workspace } from "@/types/workspace";
 export default function WorkspaceSettingsPage({
   params,
 }: {
-  params: { workspaceId: string };
+  params: Promise<{ workspaceId: string }>;
 }) {
+  const { workspaceId } = use(params);
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +26,7 @@ export default function WorkspaceSettingsPage({
 
     try {
       const workspace = await apiFetch<Workspace>(
-        `/workspaces/${params.workspaceId}`,
+        `/workspaces/${workspaceId}`,
         {
           method: "PATCH",
           body: { title },
@@ -49,7 +50,7 @@ export default function WorkspaceSettingsPage({
     setMessage(null);
 
     try {
-      await apiFetch<void>(`/workspaces/${params.workspaceId}`, {
+      await apiFetch<void>(`/workspaces/${workspaceId}`, {
         method: "DELETE",
       });
       setMessage("Workspace deletion scheduled.");

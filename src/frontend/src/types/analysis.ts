@@ -10,6 +10,16 @@ export type ToolSelection = {
   arguments?: Record<string, unknown>;
 };
 
+export type AnalysisTool = {
+  name: string;
+  description: string;
+  arguments: Record<string, unknown>;
+};
+
+export type AnalysisToolListResponse = {
+  tools: AnalysisTool[];
+};
+
 export type AnalysisRun = {
   id: string;
   workspace_id: string;

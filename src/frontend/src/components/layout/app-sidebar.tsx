@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { USE_MOCKS } from "@/lib/constants";
 import { useWorkspaces } from "@/hooks/use-workspaces";
 
 export function AppSidebar() {
@@ -22,11 +21,6 @@ export function AppSidebar() {
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
           Workspaces
         </p>
-        {USE_MOCKS ? (
-          <p className="mt-1 hidden text-xs text-slate-500 md:block">
-            Local preview data
-          </p>
-        ) : null}
         <Button className="mt-0 md:mt-4 md:w-full" onClick={handleCreate}>
           New upload
         </Button>

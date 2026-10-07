@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { use, useCallback, useState } from "react";
 import { AnalysisCard } from "@/components/analysis/analysis-card";
 import { ChatPanel } from "@/components/analysis/chat-panel";
 import { DeterministicToolPanel } from "@/components/analysis/deterministic-tool-panel";
@@ -21,16 +21,15 @@ import { useWorkspaceDetail } from "@/hooks/use-workspaces";
 export default function WorkspacePage({
   params,
 }: {
-  params: { workspaceId: string };
+  params: Promise<{ workspaceId: string }>;
 }) {
+  const { workspaceId } = use(params);
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("schema");
-  const { detail, isLoading, error, refresh } = useWorkspaceDetail(
-    params.workspaceId,
-  );
+  const { detail, isLoading, error, refresh } = useWorkspaceDetail(workspaceId);
   const handleEvent = useCallback(() => {
     void refresh();
   }, [refresh]);
-  const connectionStatus = useWorkspaceEvents(params.workspaceId, handleEvent);
+  const connectionStatus = useWorkspaceEvents(workspaceId, handleEvent);
 
   const selectedDataset = detail?.datasets[0] ?? null;
   const datasetId = selectedDataset?.dataset.id ?? null;
@@ -54,7 +53,12 @@ export default function WorkspacePage({
             datasetStatus={datasetStatus}
             workspace={detail.workspace}
           />
-          <DatasetOverview item={selectedDataset} />
+          <DatasetOverview
+            item={selectedDataset}
+            onDeleted={() => {
+              void refresh();
+            }}
+          />
           <WorkspaceTabs activeTab={activeTab} onChange={setActiveTab} />
 
           <div className="flex-1 overflow-auto bg-slate-50 px-5 py-5">
@@ -79,7 +83,13 @@ export default function WorkspacePage({
                   </p>
                   <div className="mt-3 grid gap-3">
                     {runningRuns.map((run) => (
-                      <AnalysisCard key={run.id} run={run} />
+                      <AnalysisCard
+                        key={run.id}
+                        onChanged={() => {
+                          void refresh();
+                        }}
+                        run={run}
+                      />
                     ))}
                   </div>
                 </section>
@@ -109,7 +119,13 @@ export default function WorkspacePage({
                     </Card>
                   ) : (
                     detail.recent_runs.map((run) => (
-                      <AnalysisCard key={run.id} run={run} />
+                      <AnalysisCard
+                        key={run.id}
+                        onChanged={() => {
+                          void refresh();
+                        }}
+                        run={run}
+                      />
                     ))
                   )}
                 </div>

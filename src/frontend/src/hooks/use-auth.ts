@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ApiError, apiFetch } from "@/lib/api-client";
-import { API_BASE_URL, USE_MOCKS } from "@/lib/constants";
-import { mockUser } from "@/lib/mock-data";
+import { API_BASE_URL } from "@/lib/constants";
 import type { CurrentUser } from "@/types/auth";
 
 export function useAuth() {
@@ -12,13 +11,6 @@ export function useAuth() {
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    if (USE_MOCKS) {
-      setUser(mockUser);
-      setError(null);
-      setIsLoading(false);
-      return;
-    }
-
     setIsLoading(true);
     setError(null);
 
@@ -49,11 +41,6 @@ export function useAuth() {
   }, []);
 
   const logout = useCallback(async () => {
-    if (USE_MOCKS) {
-      setUser(null);
-      return;
-    }
-
     await apiFetch<void>("/auth/logout", { method: "POST" });
     setUser(null);
   }, []);

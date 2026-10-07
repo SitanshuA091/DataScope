@@ -1,8 +1,29 @@
+"use client";
+
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { useDatasetActions } from "@/hooks/use-datasets";
 import { formatBytes } from "@/lib/formatters";
 import type { DatasetListItem } from "@/types/dataset";
 
-export function DatasetOverview({ item }: { item: DatasetListItem | null }) {
+export function DatasetOverview({
+  item,
+  onDeleted,
+}: {
+  item: DatasetListItem | null;
+  onDeleted?: () => void;
+}) {
+  const { deleteDataset, isDeleting, error } = useDatasetActions();
+
+  async function handleDelete() {
+    if (!item) {
+      return;
+    }
+
+    await deleteDataset(item.dataset.id);
+    onDeleted?.();
+  }
+
   if (!item?.current_version) {
     return (
       <section className="border-b border-slate-200 bg-white px-5 py-5">
@@ -50,27 +71,38 @@ export function DatasetOverview({ item }: { item: DatasetListItem | null }) {
               {version.validation_error}
             </p>
           ) : null}
+          {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
         </div>
 
-        <div className="grid grid-cols-3 gap-2 text-sm">
-          <div className="rounded-md bg-slate-50 px-3 py-2">
-            <p className="text-xs text-slate-500">Rows</p>
-            <p className="font-semibold text-slate-950">
-              {version.row_count.toLocaleString()}
-            </p>
+        <div className="flex flex-col gap-3">
+          <div className="grid grid-cols-3 gap-2 text-sm">
+            <div className="rounded-md bg-slate-50 px-3 py-2">
+              <p className="text-xs text-slate-500">Rows</p>
+              <p className="font-semibold text-slate-950">
+                {version.row_count.toLocaleString()}
+              </p>
+            </div>
+            <div className="rounded-md bg-slate-50 px-3 py-2">
+              <p className="text-xs text-slate-500">Columns</p>
+              <p className="font-semibold text-slate-950">
+                {version.column_count.toLocaleString()}
+              </p>
+            </div>
+            <div className="rounded-md bg-slate-50 px-3 py-2">
+              <p className="text-xs text-slate-500">Version</p>
+              <p className="font-semibold text-slate-950">
+                {version.version_number}
+              </p>
+            </div>
           </div>
-          <div className="rounded-md bg-slate-50 px-3 py-2">
-            <p className="text-xs text-slate-500">Columns</p>
-            <p className="font-semibold text-slate-950">
-              {version.column_count.toLocaleString()}
-            </p>
-          </div>
-          <div className="rounded-md bg-slate-50 px-3 py-2">
-            <p className="text-xs text-slate-500">Version</p>
-            <p className="font-semibold text-slate-950">
-              {version.version_number}
-            </p>
-          </div>
+          <Button
+            className="self-start xl:self-end"
+            disabled={isDeleting}
+            onClick={handleDelete}
+            variant="danger"
+          >
+            {isDeleting ? "Deleting..." : "Delete dataset"}
+          </Button>
         </div>
       </div>
     </section>

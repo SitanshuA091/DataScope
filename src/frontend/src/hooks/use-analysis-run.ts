@@ -2,8 +2,11 @@
 
 import { useState } from "react";
 import { apiFetch } from "@/lib/api-client";
-import { USE_MOCKS } from "@/lib/constants";
-import type { AnalysisRunSubmission, ToolSelection } from "@/types/analysis";
+import type {
+  AnalysisRun,
+  AnalysisRunSubmission,
+  ToolSelection,
+} from "@/types/analysis";
 
 export function useAnalysisRun(datasetId: string | null | undefined) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -18,17 +21,6 @@ export function useAnalysisRun(datasetId: string | null | undefined) {
     setError(null);
 
     try {
-      if (USE_MOCKS) {
-        await new Promise((resolve) => window.setTimeout(resolve, 450));
-        return {
-          id: `mock-run-${Date.now()}`,
-          status: "pending",
-          execution_mode: "queued",
-          dataset_version_id: "version-sales-q4",
-          created_at: new Date().toISOString(),
-        } satisfies AnalysisRunSubmission;
-      }
-
       return await apiFetch<AnalysisRunSubmission>(
         `/datasets/${datasetId}/analysis-runs`,
         {
@@ -52,4 +44,47 @@ export function useAnalysisRun(datasetId: string | null | undefined) {
   }
 
   return { submitAnalysis, isSubmitting, error };
+}
+
+export function useAnalysisRunActions() {
+  const [isMutating, setIsMutating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function retryRun(runId: string) {
+    setIsMutating(true);
+    setError(null);
+
+    try {
+      return await apiFetch<AnalysisRun>(`/analysis-runs/${runId}/retry`, {
+        method: "POST",
+      });
+    } catch (requestError) {
+      const message =
+        requestError instanceof Error ? requestError.message : "Retry failed.";
+      setError(message);
+      throw requestError;
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  async function cancelRun(runId: string) {
+    setIsMutating(true);
+    setError(null);
+
+    try {
+      return await apiFetch<AnalysisRun>(`/analysis-runs/${runId}/cancel`, {
+        method: "POST",
+      });
+    } catch (requestError) {
+      const message =
+        requestError instanceof Error ? requestError.message : "Cancel failed.";
+      setError(message);
+      throw requestError;
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  return { retryRun, cancelRun, isMutating, error };
 }

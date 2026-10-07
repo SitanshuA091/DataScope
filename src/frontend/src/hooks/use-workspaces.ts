@@ -2,8 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api-client";
-import { USE_MOCKS } from "@/lib/constants";
-import { getMockWorkspaceDetail, mockWorkspaces } from "@/lib/mock-data";
 import type {
   Workspace,
   WorkspaceDetail,
@@ -16,13 +14,6 @@ export function useWorkspaces() {
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    if (USE_MOCKS) {
-      setWorkspaces(mockWorkspaces);
-      setError(null);
-      setIsLoading(false);
-      return;
-    }
-
     setIsLoading(true);
     setError(null);
 
@@ -46,20 +37,6 @@ export function useWorkspaces() {
 
   const createWorkspace = useCallback(
     async (title?: string | null) => {
-      if (USE_MOCKS) {
-        const timestamp = new Date().toISOString();
-        return {
-          id: "demo-sales",
-          user_id: "local-user",
-          title: title?.trim() || "Untitled workspace",
-          last_activity_at: timestamp,
-          deleted_at: null,
-          scheduled_deletion_at: null,
-          created_at: timestamp,
-          updated_at: timestamp,
-        };
-      }
-
       const workspace = await apiFetch<Workspace>("/workspaces", {
         method: "POST",
         body: { title: title?.trim() || null },
@@ -79,13 +56,6 @@ export function useWorkspaceDetail(workspaceId: string) {
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    if (USE_MOCKS) {
-      setDetail(getMockWorkspaceDetail(workspaceId));
-      setError(null);
-      setIsLoading(false);
-      return;
-    }
-
     setIsLoading(true);
     setError(null);
 

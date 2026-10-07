@@ -1,12 +1,11 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { WorkspaceShell } from "@/components/layout/workspace-shell";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { USE_MOCKS } from "@/lib/constants";
 import { useAuth } from "@/hooks/use-auth";
 import { useWorkspaces } from "@/hooks/use-workspaces";
 import { formatDateTime } from "@/lib/formatters";
@@ -16,13 +15,18 @@ export default function WorkspacesPage() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const { workspaces, isLoading, error, createWorkspace } = useWorkspaces();
 
+  useEffect(() => {
+    if (!isAuthLoading && !user) {
+      router.push("/login");
+    }
+  }, [isAuthLoading, router, user]);
+
   async function handleCreate() {
     const workspace = await createWorkspace("Untitled workspace");
     router.push(`/workspaces/${workspace.id}`);
   }
 
   if (!isAuthLoading && !user) {
-    router.push("/login");
     return null;
   }
 
@@ -31,24 +35,14 @@ export default function WorkspacesPage() {
       <div className="mx-auto max-w-6xl px-5 py-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl font-semibold tracking-normal">
-                Workspaces
-              </h1>
-              {USE_MOCKS ? <Badge variant="info">Local mock mode</Badge> : null}
-            </div>
+            <h1 className="text-2xl font-semibold tracking-normal">
+              Workspaces
+            </h1>
             <p className="mt-1 text-sm text-slate-600">
               Pick up a dataset analysis or start a fresh upload.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {USE_MOCKS ? (
-              <Link href="/workspaces/demo-sales">
-                <Button variant="secondary">Open demo workspace</Button>
-              </Link>
-            ) : null}
-            <Button onClick={handleCreate}>Create workspace</Button>
-          </div>
+          <Button onClick={handleCreate}>Create workspace</Button>
         </div>
 
         {error ? <p className="mt-6 text-sm text-red-600">{error}</p> : null}

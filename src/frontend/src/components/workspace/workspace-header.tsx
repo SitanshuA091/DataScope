@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { USE_MOCKS } from "@/lib/constants";
 import { formatDateTime } from "@/lib/formatters";
 import type { Workspace } from "@/types/workspace";
 
@@ -22,7 +21,6 @@ export function WorkspaceHeader({
         </p>
       </div>
       <div className="flex items-center gap-3">
-        {USE_MOCKS ? <Badge variant="info">Preview</Badge> : null}
         <Badge variant={datasetStatus === "ready" ? "success" : "neutral"}>
           {datasetStatus}
         </Badge>

@@ -3,7 +3,6 @@
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { apiFetch } from "@/lib/api-client";
-import { USE_MOCKS } from "@/lib/constants";
 import type { DatasetUploadResponse } from "@/types/dataset";
 
 export function UploadZone({
@@ -16,7 +15,6 @@ export function UploadZone({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [fileName, setFileName] = useState<string | null>(null);
 
   async function upload(file: File | null | undefined) {
     if (!file) {
@@ -29,18 +27,13 @@ export function UploadZone({
     setError(null);
 
     try {
-      if (USE_MOCKS) {
-        await new Promise((resolve) => window.setTimeout(resolve, 500));
-        setFileName(file.name);
-      } else {
-        await apiFetch<DatasetUploadResponse>(
-          `/workspaces/${workspaceId}/datasets`,
-          {
-            method: "POST",
-            body: formData,
-          },
-        );
-      }
+      await apiFetch<DatasetUploadResponse>(
+        `/workspaces/${workspaceId}/datasets`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
       onUploaded();
     } catch (requestError) {
       setError(
@@ -64,11 +57,6 @@ export function UploadZone({
           <p className="mt-1 text-sm text-slate-600">
             Add a dataset to inspect schema details and run analyses.
           </p>
-          {fileName ? (
-            <p className="mt-2 text-xs font-medium text-emerald-700">
-              Staged locally: {fileName}
-            </p>
-          ) : null}
         </div>
         <input
           accept=".csv,text/csv"
