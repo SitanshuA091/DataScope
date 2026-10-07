@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
-import { USE_MOCKS } from "@/lib/constants";
 
 export function Topbar() {
   const router = useRouter();
@@ -17,15 +16,13 @@ export function Topbar() {
 
   return (
     <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 md:px-6">
-      <Link className="text-lg font-semibold tracking-normal" href="/workspaces">
+      <Link
+        className="app-brand text-xl font-semibold tracking-normal"
+        href="/workspaces"
+      >
         DataScope
       </Link>
       <div className="flex min-w-0 items-center gap-3">
-        {USE_MOCKS ? (
-          <span className="hidden rounded bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 sm:inline-flex">
-            Mock API
-          </span>
-        ) : null}
         {user?.avatar_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img

@@ -18,7 +18,7 @@ export default function LoginPage() {
   return (
     <main className="grid min-h-screen bg-slate-950 text-white lg:grid-cols-[1fr_420px]">
       <section className="flex min-h-[46vh] flex-col justify-between bg-[linear-gradient(135deg,#0f172a_0%,#1e3a8a_48%,#0f766e_100%)] px-6 py-8 lg:min-h-screen lg:px-12">
-        <div className="text-lg font-semibold">DataScope</div>
+        <div className="app-brand text-xl font-semibold">DataScope</div>
         <div className="max-w-3xl pb-8">
           <p className="text-sm font-medium uppercase tracking-wide text-cyan-100">
             Dataset analysis workspace
