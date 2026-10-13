@@ -32,11 +32,13 @@ class AnalysisRunHistoryResponse(BaseModel):
 
 
 class AnalysisArtifactResponse(BaseModel):
+    id: UUID | None = None
     artifact_type: str
     storage_key: str | None = None
     mime_type: str | None = None
     tool_name: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
+    url: str | None = None
 
 
 class AnalysisArtifactListResponse(BaseModel):
