@@ -4,10 +4,15 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
+from app.core.exceptions import NotFoundError
+from app.db.models.analysis_run import AnalysisRun
+from app.db.models.artifact import Artifact
+from app.db.models.dataset import Dataset, DatasetVersion
 from app.db.models.user import User
 from app.schemas.result import (
     AnalysisArtifactListResponse,
@@ -21,6 +26,7 @@ from app.services.analysis_service import (
     list_analysis_artifacts,
     list_analysis_runs_for_dataset,
 )
+from app.services.storage_service import download_bytes
 
 router = APIRouter(tags=["Results"])
 
@@ -84,4 +90,34 @@ def get_run_artifacts(
             AnalysisArtifactResponse.model_validate(artifact)
             for artifact in artifacts
         ]
+    )
+
+
+@router.get(
+    "/artifacts/{artifact_id}/content",
+)
+def get_artifact_content(
+    artifact_id: UUID,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> Response:
+    artifact = db.scalar(
+        select(Artifact)
+        .join(Artifact.analysis_run)
+        .join(AnalysisRun.dataset_version)
+        .join(DatasetVersion.dataset)
+        .join(Dataset.workspace)
+        .where(
+            Artifact.id == artifact_id,
+            Dataset.workspace.has(user_id=current_user.id),
+        )
+    )
+    if artifact is None:
+        raise NotFoundError("Artifact was not found.")
+
+    content = download_bytes(artifact.storage_key)
+    return Response(
+        content=content,
+        media_type=artifact.mime_type or "image/png",
+        headers={"Cache-Control": "public, max-age=86400"},
     )
