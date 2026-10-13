@@ -12,6 +12,8 @@ celery_app = Celery(
     include=["app.workers.analysis_tasks"],
 )
 
+import sys
+
 celery_app.conf.update(
     task_serializer="json",
     result_serializer="json",
@@ -23,3 +25,6 @@ celery_app.conf.update(
     task_acks_late=True,
     task_reject_on_worker_lost=True,
 )
+
+if sys.platform == "win32":
+    celery_app.conf.worker_pool = "solo"
