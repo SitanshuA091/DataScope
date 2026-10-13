@@ -93,6 +93,7 @@ def analyze_high_level(
     *,
     include_plots: bool = False,
     artifact_dir: Path | str | None = None,
+    **_kwargs: Any,
 ) -> dict[str, object]:
     """Return dataset-level EDA metrics for planner-selected high-level analysis."""
 

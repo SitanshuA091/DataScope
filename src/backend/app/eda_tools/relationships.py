@@ -102,6 +102,7 @@ def analyze_relationships(
     *,
     include_plots: bool = False,
     artifact_dir: Path | str | None = None,
+    **_kwargs: Any,
 ) -> dict[str, object]:
     """Analyze correlations and grouped relationships for selected variables."""
 

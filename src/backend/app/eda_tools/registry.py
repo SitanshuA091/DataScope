@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -100,4 +101,16 @@ def run_tool(
     **kwargs: Any,
 ) -> dict[str, object]:
     tool = get_tool(name)
-    return tool.function(frame, **kwargs)
+    sig = inspect.signature(tool.function)
+    has_var_keyword = any(
+        param.kind == inspect.Parameter.VAR_KEYWORD
+        for param in sig.parameters.values()
+    )
+    if has_var_keyword:
+        filtered_kwargs = kwargs
+    else:
+        filtered_kwargs = {
+            k: v for k, v in kwargs.items()
+            if k in sig.parameters
+        }
+    return tool.function(frame, **filtered_kwargs)

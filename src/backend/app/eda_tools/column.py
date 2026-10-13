@@ -104,6 +104,7 @@ def analyze_columns(
     top_n: int = 10,
     include_plots: bool = False,
     artifact_dir: Path | str | None = None,
+    **_kwargs: Any,
 ) -> dict[str, object]:
     """Analyze selected columns using dtype-appropriate pandas summaries."""
 

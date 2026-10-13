@@ -124,6 +124,7 @@ def analyze_data_quality(
     frame: pd.DataFrame,
     *,
     high_cardinality_threshold: float = 0.9,
+    **_kwargs: Any,
 ) -> dict[str, object]:
     """Detect common data quality issues without mutating the dataframe."""
 
