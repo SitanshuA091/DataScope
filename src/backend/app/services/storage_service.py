@@ -6,6 +6,7 @@ from typing import Any
 import boto3
 from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
+from fastapi import status
 
 from app.core.config import settings
 from app.core.exceptions import AppError
@@ -21,6 +22,7 @@ R2_CLIENT_CONFIG = Config(
 
 
 class StorageError(AppError):
+    status_code = status.HTTP_502_BAD_GATEWAY
     error_code = "storage_error"
     default_message = "The file could not be stored."
 
@@ -45,6 +47,15 @@ def _r2_client() -> Any:
     )
 
 
+def _client_error_details(exc: ClientError) -> dict[str, Any]:
+    error = exc.response.get("Error", {})
+    return {
+        "provider": "cloudflare_r2",
+        "provider_code": error.get("Code", "unknown"),
+        "provider_message": error.get("Message", "Unknown storage error."),
+    }
+
+
 def upload_bytes(
     *,
     storage_key: str,
@@ -64,8 +75,17 @@ def upload_bytes(
             Body=content,
             ContentType=content_type,
         )
-    except (BotoCoreError, ClientError) as exc:
-        raise StorageError("The uploaded file could not be stored.") from exc
+    except ClientError as exc:
+        details = _client_error_details(exc)
+        raise StorageError(
+            f"R2 rejected the upload: {details['provider_code']}.",
+            details=details,
+        ) from exc
+    except BotoCoreError as exc:
+        raise StorageError(
+            "R2 could not be reached for upload.",
+            details={"provider": "cloudflare_r2", "error": str(exc)},
+        ) from exc
 
     return storage_key
 
@@ -83,8 +103,17 @@ def download_bytes(storage_key: str) -> bytes:
             Key=storage_key,
         )
         return response["Body"].read()
-    except (BotoCoreError, ClientError) as exc:
-        raise StorageError("The stored file could not be read.") from exc
+    except ClientError as exc:
+        details = _client_error_details(exc)
+        raise StorageError(
+            f"R2 rejected the read: {details['provider_code']}.",
+            details=details,
+        ) from exc
+    except BotoCoreError as exc:
+        raise StorageError(
+            "R2 could not be reached for read.",
+            details={"provider": "cloudflare_r2", "error": str(exc)},
+        ) from exc
 
 
 def delete_object(storage_key: str) -> None:
@@ -97,5 +126,14 @@ def delete_object(storage_key: str) -> None:
             Bucket=settings.r2_bucket_name,
             Key=storage_key,
         )
-    except (BotoCoreError, ClientError) as exc:
-        raise StorageError("The stored file could not be deleted.") from exc
+    except ClientError as exc:
+        details = _client_error_details(exc)
+        raise StorageError(
+            f"R2 rejected the delete: {details['provider_code']}.",
+            details=details,
+        ) from exc
+    except BotoCoreError as exc:
+        raise StorageError(
+            "R2 could not be reached for delete.",
+            details={"provider": "cloudflare_r2", "error": str(exc)},
+        ) from exc

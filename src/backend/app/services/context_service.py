@@ -11,6 +11,7 @@ from app.core.exceptions import AppError, ConflictError, NotFoundError
 from app.db.models.conversation import Conversation, Message
 from app.db.models.dataset import DatasetVersion
 from app.services.dataset_service import get_dataset_overview
+from sqlalchemy.exc import IntegrityError
 
 USER_MESSAGE_ROLE = "user"
 ALLOWED_MESSAGE_ROLES = {USER_MESSAGE_ROLE, "assistant", "system"}
@@ -75,7 +76,8 @@ def create_or_reopen_conversation(
             Conversation.dataset_version_id == dataset_version.id,
         )
     )
-
+    
+    
     if conversation is None:
         conversation = Conversation(
             workspace_id=dataset.workspace_id,
@@ -83,6 +85,29 @@ def create_or_reopen_conversation(
             active_columns_json=[],
         )
         db.add(conversation)
+
+        try:
+            db.flush()
+        except IntegrityError:
+            # Another request may have created this conversation
+            # after our initial lookup.
+            db.rollback()
+
+            dataset, dataset_version = get_dataset_overview(
+                db=db,
+                user_id=user_id,
+                dataset_id=dataset_id,
+            )
+
+            conversation = db.scalar(
+                select(Conversation).where(
+                    Conversation.workspace_id == dataset.workspace_id,
+                    Conversation.dataset_version_id == dataset_version.id,
+                )
+            )
+
+            if conversation is None:
+                raise
 
     if active_columns is not None:
         conversation.active_columns_json = _validate_active_columns(
@@ -94,7 +119,6 @@ def create_or_reopen_conversation(
     db.commit()
     db.refresh(conversation)
     return conversation
-
 
 def get_conversation_for_dataset(
     *,

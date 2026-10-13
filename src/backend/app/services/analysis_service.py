@@ -7,7 +7,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from time import perf_counter
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pandas as pd
 from sqlalchemy import select
@@ -138,7 +138,9 @@ def _cache_arguments(
     tool_arguments: dict[str, Any],
     include_plots: bool,
 ) -> dict[str, Any]:
-    normalized = dict(tool_arguments)
+    tool = TOOL_REGISTRY.get(tool_name)
+    allowed_keys = set(tool.arguments.keys()) if tool else set()
+    normalized = {k: v for k, v in tool_arguments.items() if k in allowed_keys}
     if include_plots and _tool_supports_plots(tool_name):
         normalized["include_plots"] = True
     return normalized
@@ -288,9 +290,11 @@ def _upload_and_persist_result_artifacts(
             content_type=PLOT_MIME_TYPE,
         )
 
+        artifact_id = uuid4()
         artifact_type = _artifact_type(payload)
         db.add(
             Artifact(
+                id=artifact_id,
                 analysis_run_id=run.id,
                 tool_execution_id=execution.id,
                 artifact_type=artifact_type,
@@ -301,9 +305,11 @@ def _upload_and_persist_result_artifacts(
 
         uploaded = dict(payload)
         uploaded.pop("path", None)
+        uploaded["id"] = str(artifact_id)
         uploaded["artifact_type"] = artifact_type
         uploaded["storage_key"] = storage_key
         uploaded["mime_type"] = PLOT_MIME_TYPE
+        uploaded["url"] = f"{settings.api_v1_prefix}/artifacts/{artifact_id}/content"
         uploaded_payloads.append(uploaded)
 
     return {**result, "artifacts": uploaded_payloads}
@@ -426,11 +432,13 @@ def list_analysis_artifacts(
     )
     artifacts = [
         {
+            "id": artifact.id,
             "artifact_type": artifact.artifact_type,
             "storage_key": artifact.storage_key,
             "mime_type": artifact.mime_type,
             "tool_name": None,
             "metadata": {"id": str(artifact.id)},
+            "url": f"{settings.api_v1_prefix}/artifacts/{artifact.id}/content",
         }
         for artifact in persisted
     ]
