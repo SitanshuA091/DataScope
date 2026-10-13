@@ -108,10 +108,22 @@ def _override_dependencies() -> None:
 def setup_function() -> None:
     app.dependency_overrides.clear()
     _override_dependencies()
+    from contextlib import suppress
+
+    from app.services.cache_service import get_redis_client
+
+    with suppress(Exception):
+        get_redis_client().flushdb()
 
 
 def teardown_function() -> None:
     app.dependency_overrides.clear()
+    from contextlib import suppress
+
+    from app.services.cache_service import get_redis_client
+
+    with suppress(Exception):
+        get_redis_client().flushdb()
 
 
 @pytest.fixture()

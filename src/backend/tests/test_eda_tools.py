@@ -74,3 +74,10 @@ def test_registry_exposes_and_runs_tools() -> None:
 
     assert {"high_level", "column", "relationships", "quality"} <= names
     assert run_tool("quality", _frame())["tool"] == "quality"
+
+
+def test_tools_ignore_unexpected_keyword_arguments() -> None:
+    frame = _frame()
+    for tool_name in ["high_level", "column", "relationships", "quality"]:
+        res = run_tool(tool_name, frame, question="What is the distribution?", extra_param=123)
+        assert res["tool"] == tool_name
