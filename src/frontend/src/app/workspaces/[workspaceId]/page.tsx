@@ -1,9 +1,11 @@
 "use client";
 
 import { use, useCallback, useState } from "react";
-import { AnalysisCard } from "@/components/analysis/analysis-card";
+import { useRouter } from "next/navigation";
+import { AnalysisFeed } from "@/components/analysis/analysis-feed";
 import { ChatPanel } from "@/components/analysis/chat-panel";
 import { DeterministicToolPanel } from "@/components/analysis/deterministic-tool-panel";
+import { RunStatus } from "@/components/analysis/run-status";
 import { WorkspaceShell } from "@/components/layout/workspace-shell";
 import { Card } from "@/components/ui/card";
 import { DatasetOverview } from "@/components/workspace/dataset-overview";
@@ -17,6 +19,8 @@ import {
 } from "@/components/workspace/workspace-tabs";
 import { useWorkspaceEvents } from "@/hooks/use-workspace-events";
 import { useWorkspaceDetail } from "@/hooks/use-workspaces";
+import { formatDateTime } from "@/lib/formatters";
+import { isActiveRunStatus } from "@/types/analysis";
 
 export default function WorkspacePage({
   params,
@@ -24,6 +28,7 @@ export default function WorkspacePage({
   params: Promise<{ workspaceId: string }>;
 }) {
   const { workspaceId } = use(params);
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("schema");
   const { detail, isLoading, error, refresh } = useWorkspaceDetail(workspaceId);
   const handleEvent = useCallback(() => {
@@ -33,11 +38,11 @@ export default function WorkspacePage({
 
   const selectedDataset = detail?.datasets[0] ?? null;
   const datasetId = selectedDataset?.dataset.id ?? null;
-  const datasetStatus = selectedDataset?.current_version ? "ready" : "no dataset";
-  const runningRuns =
-    detail?.recent_runs.filter((run) =>
-      ["pending", "running"].includes(run.status),
-    ) ?? [];
+  const datasetStatus = selectedDataset?.current_version
+    ? "ready"
+    : "no dataset";
+  const recentRuns = detail?.recent_runs ?? [];
+  const runningRuns = recentRuns.filter((run) => isActiveRunStatus(run.status));
 
   return (
     <WorkspaceShell>
@@ -77,22 +82,56 @@ export default function WorkspacePage({
               </div>
 
               {runningRuns.length > 0 ? (
-                <section className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-                  <p className="text-sm font-medium text-slate-950">
-                    Active analysis
-                  </p>
-                  <div className="mt-3 grid gap-3">
-                    {runningRuns.map((run) => (
-                      <AnalysisCard
-                        key={run.id}
-                        onChanged={() => {
-                          void refresh();
-                        }}
-                        run={run}
-                      />
-                    ))}
+                <Card className="overflow-hidden border-blue-200 bg-blue-50/50">
+                  <div className="border-b border-blue-100 px-5 py-3">
+                    <p className="text-sm font-medium text-slate-950">
+                      Active analysis
+                    </p>
+                    <p className="mt-1 text-xs text-slate-600">
+                      Open a run to watch tool progress and outputs.
+                    </p>
                   </div>
-                </section>
+                  <div className="divide-y divide-blue-100">
+                    {runningRuns.map((run) => {
+                      const tools = (run.selected_tools_json ?? [])
+                        .map((tool) =>
+                          String(tool.name ?? "tool").replaceAll("_", " "),
+                        )
+                        .join(", ");
+                      return (
+                        <button
+                          className="flex w-full flex-col gap-3 px-5 py-4 text-left transition hover:bg-blue-50 sm:flex-row sm:items-center sm:justify-between"
+                          key={run.id}
+                          onClick={() =>
+                            router.push(
+                              `/workspaces/${workspaceId}/runs/${run.id}`,
+                            )
+                          }
+                          type="button"
+                        >
+                          <div>
+                            <p className="text-sm font-semibold capitalize text-slate-950">
+                              {tools || "Analysis run"}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500">
+                              Started {formatDateTime(run.created_at)}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <RunStatus
+                              progress={run.progress_percent}
+                              stage={run.progress_stage}
+                              status={run.status}
+                            />
+                            <span className="text-xs font-medium text-blue-700">
+                              Open →
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </Card>
               ) : null}
 
               {activeTab === "schema" ? (
@@ -106,41 +145,25 @@ export default function WorkspacePage({
                     onSubmitted={() => {
                       void refresh();
                     }}
+                    workspaceId={workspaceId}
                   />
-                  {detail.recent_runs.length === 0 ? (
-                    <Card className="p-5">
-                      <h2 className="text-base font-semibold text-slate-950">
-                        Analyses
-                      </h2>
-                      <p className="mt-2 text-sm text-slate-600">
-                        Ask a question after uploading a dataset to create a
-                        reusable analysis record.
-                      </p>
-                    </Card>
-                  ) : (
-                    detail.recent_runs.map((run) => (
-                      <AnalysisCard
-                        key={run.id}
-                        onChanged={() => {
-                          void refresh();
-                        }}
-                        run={run}
-                      />
-                    ))
-                  )}
+                  <AnalysisFeed runs={recentRuns} workspaceId={workspaceId} />
                 </div>
               ) : null}
 
-              {activeTab === "history" ? <HistoryPanel detail={detail} /> : null}
+              {activeTab === "history" ? (
+                <HistoryPanel detail={detail} runs={recentRuns} />
+              ) : null}
             </div>
           </div>
 
           <ChatPanel
+            activeJobCount={runningRuns.length}
             datasetId={datasetId}
             onSubmitted={() => {
-              setActiveTab("analyses");
               void refresh();
             }}
+            workspaceId={workspaceId}
           />
         </div>
       )}
