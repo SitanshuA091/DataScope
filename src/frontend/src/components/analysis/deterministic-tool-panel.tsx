@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -13,18 +14,18 @@ function formatToolName(name: string) {
 
 export function DeterministicToolPanel({
   datasetId,
+  workspaceId,
   onSubmitted,
 }: {
   datasetId: string | null;
+  workspaceId: string;
   onSubmitted: () => void;
 }) {
+  const router = useRouter();
   const [selectedTools, setSelectedTools] = useState<Set<string>>(
     () => new Set(["high_level", "quality"]),
   );
   const [includePlots, setIncludePlots] = useState(true);
-  const [question, setQuestion] = useState(
-    "Prepare this dataset for analysis and flag quality risks.",
-  );
   const { submitAnalysis, isSubmitting, error } = useAnalysisRun(datasetId);
   const {
     tools: availableTools,
@@ -38,11 +39,9 @@ export function DeterministicToolPanel({
         .filter((tool) => selectedTools.has(tool.name))
         .map((tool) => ({
           name: tool.name,
-          arguments: {
-            question: question.trim(),
-          },
+          arguments: {},
         })),
-    [availableTools, question, selectedTools],
+    [availableTools, selectedTools],
   );
 
   function toggleTool(toolId: string) {
@@ -62,8 +61,9 @@ export function DeterministicToolPanel({
       return;
     }
 
-    await submitAnalysis(tools, includePlots);
+    const run = await submitAnalysis(tools, includePlots);
     onSubmitted();
+    router.push(`/workspaces/${workspaceId}/runs/${run.id}`);
   }
 
   return (
@@ -75,7 +75,7 @@ export function DeterministicToolPanel({
               Deterministic tools
             </h2>
             <p className="mt-1 text-sm text-slate-600">
-              Run repeatable checks before asking for interpretation.
+              Run checks, then open the run page for live progress and outputs.
             </p>
           </div>
           <label className="inline-flex items-center gap-2 text-sm text-slate-700">
@@ -97,9 +97,7 @@ export function DeterministicToolPanel({
           </p>
         ) : null}
         {toolsError ? (
-          <p className="p-5 text-sm text-red-600 lg:col-span-4">
-            {toolsError}
-          </p>
+          <p className="p-5 text-sm text-red-600 lg:col-span-4">{toolsError}</p>
         ) : null}
         {!isLoadingTools && !toolsError && availableTools.length === 0 ? (
           <p className="p-5 text-sm text-slate-600 lg:col-span-4">
@@ -119,7 +117,7 @@ export function DeterministicToolPanel({
                 type="checkbox"
               />
               <span>
-                <span className="block text-sm font-semibold text-slate-950">
+                <span className="block text-sm font-semibold capitalize text-slate-950">
                   {formatToolName(tool.name)}
                 </span>
                 <span className="mt-1 block text-xs leading-5 text-slate-600">
@@ -132,18 +130,18 @@ export function DeterministicToolPanel({
       </div>
 
       <div className="border-t border-slate-200 bg-slate-50 px-5 py-4">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-          <input
-            className="min-h-10 flex-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950"
-            onChange={(event) => setQuestion(event.target.value)}
-            value={question}
-          />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-slate-500">
+            Selected: {selectedTools.size} tool
+            {selectedTools.size === 1 ? "" : "s"}
+            {includePlots ? " · with plots" : ""}
+          </p>
           <Button
-            className="xl:w-44"
+            className="sm:w-44"
             disabled={!datasetId || selectedTools.size === 0 || isSubmitting}
-            onClick={runTools}
+            onClick={() => void runTools()}
           >
-            {isSubmitting ? "Queueing..." : "Run tools"}
+            {isSubmitting ? "Starting..." : "Run tools"}
           </Button>
         </div>
         {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
