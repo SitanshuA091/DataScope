@@ -374,6 +374,18 @@ def list_analysis_runs_for_dataset(
     )
 
 
+def _artifact_content_url(artifact_id: UUID | str) -> str:
+    return f"{settings.api_v1_prefix}/artifacts/{artifact_id}/content"
+
+
+def _artifact_display_metadata(payload: dict[str, Any]) -> dict[str, Any]:
+    metadata: dict[str, Any] = {}
+    for key in ("title", "columns", "kind", "format"):
+        if key in payload and payload[key] is not None:
+            metadata[key] = payload[key]
+    return metadata
+
+
 def _artifact_from_payload(
     *,
     payload: dict[str, Any],
@@ -381,18 +393,28 @@ def _artifact_from_payload(
 ) -> dict[str, Any]:
     storage_key = payload.get("storage_key") or payload.get("path")
     mime_type = payload.get("mime_type") or payload.get("mime") or "application/octet-stream"
-    artifact_type = payload.get("artifact_type") or payload.get("type") or "artifact"
-    metadata = {
-        key: value
-        for key, value in payload.items()
-        if key not in {"storage_key", "path", "mime_type", "mime", "artifact_type", "type"}
-    }
+    artifact_type = (
+        payload.get("artifact_type")
+        or payload.get("kind")
+        or payload.get("type")
+        or "artifact"
+    )
+    artifact_id = payload.get("id")
+    url = payload.get("url")
+    if artifact_id and not url:
+        url = _artifact_content_url(artifact_id)
+    metadata = _artifact_display_metadata(payload)
+    if artifact_id is not None:
+        metadata["id"] = str(artifact_id)
+
     return {
+        "id": artifact_id,
         "artifact_type": str(artifact_type),
         "storage_key": str(storage_key) if storage_key is not None else None,
         "mime_type": str(mime_type),
         "tool_name": tool_name,
         "metadata": metadata,
+        "url": str(url) if url else None,
     }
 
 
@@ -414,6 +436,26 @@ def _extract_artifacts_from_results(run: AnalysisRun) -> list[dict[str, Any]]:
     return artifacts
 
 
+def _result_artifact_lookup(run: AnalysisRun) -> dict[str, dict[str, Any]]:
+    lookup: dict[str, dict[str, Any]] = {}
+    for execution in run.tool_executions:
+        result = execution.result_json or {}
+        payloads = result.get("artifacts") or []
+        if not isinstance(payloads, list):
+            continue
+        for payload in payloads:
+            if not isinstance(payload, dict):
+                continue
+            artifact_id = payload.get("id")
+            if artifact_id is None:
+                continue
+            lookup[str(artifact_id)] = {
+                **payload,
+                "tool_name": execution.tool_name,
+            }
+    return lookup
+
+
 def list_analysis_artifacts(
     *,
     db: Session,
@@ -430,20 +472,29 @@ def list_analysis_artifacts(
             select(Artifact).where(Artifact.analysis_run_id == run.id)
         )
     )
-    artifacts = [
-        {
-            "id": artifact.id,
-            "artifact_type": artifact.artifact_type,
-            "storage_key": artifact.storage_key,
-            "mime_type": artifact.mime_type,
-            "tool_name": None,
-            "metadata": {"id": str(artifact.id)},
-            "url": f"{settings.api_v1_prefix}/artifacts/{artifact.id}/content",
-        }
-        for artifact in persisted
-    ]
+    result_lookup = _result_artifact_lookup(run)
+    artifacts: list[dict[str, Any]] = []
+    for artifact in persisted:
+        source = result_lookup.get(str(artifact.id), {})
+        metadata = _artifact_display_metadata(source)
+        metadata["id"] = str(artifact.id)
+        artifacts.append(
+            {
+                "id": artifact.id,
+                "artifact_type": artifact.artifact_type,
+                "storage_key": artifact.storage_key,
+                "mime_type": artifact.mime_type,
+                "tool_name": source.get("tool_name"),
+                "metadata": metadata,
+                "url": _artifact_content_url(artifact.id),
+            }
+        )
     if not artifacts:
-        artifacts.extend(_extract_artifacts_from_results(run))
+        artifacts.extend(
+            item
+            for item in _extract_artifacts_from_results(run)
+            if item.get("id") or item.get("url")
+        )
     return artifacts
 
 
