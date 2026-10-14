@@ -2,6 +2,7 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "primary" | "secondary" | "ghost" | "danger";
+  size?: "md" | "sm";
   children: ReactNode;
 };
 
@@ -13,16 +14,22 @@ const variants = {
   danger: "bg-red-600 text-white hover:bg-red-700 disabled:bg-red-300",
 };
 
+const sizes = {
+  md: "min-h-10 px-4 py-2 text-sm",
+  sm: "min-h-8 px-3 py-1.5 text-xs",
+};
+
 export function Button({
   className = "",
   variant = "primary",
+  size = "md",
   type = "button",
   children,
   ...props
 }: ButtonProps) {
   return (
     <button
-      className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition ${variants[variant]} disabled:cursor-not-allowed ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-md font-medium transition ${variants[variant]} ${sizes[size]} disabled:cursor-not-allowed ${className}`}
       type={type}
       {...props}
     >
