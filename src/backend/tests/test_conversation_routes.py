@@ -304,3 +304,90 @@ def test_open_conversation_returns_404_when_dataset_not_owned(monkeypatch) -> No
 
     assert response.status_code == 404
     assert response.json()["error"]["code"] == "not_found"
+
+
+def test_chat_with_dataset_successful_flow(monkeypatch) -> None:
+    from app.agent.contracts import (
+        AgentPlan,
+        AgentRunResult,
+        AnalysisInterpretation,
+        ToolCallPlan,
+    )
+
+    captured: dict[str, object] = {}
+
+    def fake_get_question_usage(db, user_id, dataset_id):
+        captured["usage_user_id"] = user_id
+        return _conversation(), 2, 10, 8
+
+    def fake_list_messages(db, user_id, dataset_id):
+        captured["list_user_id"] = user_id
+        return _conversation(), [_message(role="user", content="Prior question")]
+
+    def fake_run_analysis_agent(**kwargs):
+        captured["agent_kwargs"] = kwargs
+        plan = AgentPlan(
+            intent="High-level overview",
+            tools=[ToolCallPlan(name="high_level", reason="Need overview", arguments={})],
+        )
+        interpretation = AnalysisInterpretation(
+            answer="The dataset has 100 rows and 5 columns.",
+            key_findings=["No missing values"],
+            limitations=[],
+            follow_up_questions=[],
+        )
+        return AgentRunResult(
+            dataset_id=DATASET_ID,
+            dataset_version_id=VERSION_ID,
+            question=kwargs["question"],
+            plan=plan,
+            analysis_run_id=UUID("88888888-8888-8888-8888-888888888888"),
+            interpretation=interpretation,
+            assistant_message="The dataset has 100 rows and 5 columns.\n\nKey findings:\n- No missing values",
+        )
+
+    monkeypatch.setattr(
+        conversation_routes,
+        "get_question_usage",
+        fake_get_question_usage,
+    )
+    monkeypatch.setattr(conversation_routes, "list_messages", fake_list_messages)
+    monkeypatch.setattr(
+        conversation_routes,
+        "run_analysis_agent",
+        fake_run_analysis_agent,
+    )
+
+    response = TestClient(app).post(
+        f"/api/v1/datasets/{DATASET_ID}/chat",
+        json={"content": "Give me an overview of the data"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["user_message"]["content"] == "Give me an overview of the data"
+    assert data["user_message"]["role"] == "user"
+    assert "The dataset has 100 rows" in data["assistant_message"]["content"]
+    assert data["assistant_message"]["role"] == "assistant"
+    assert data["analysis_run_id"] == "88888888-8888-8888-8888-888888888888"
+    assert data["plan"]["tools"][0]["name"] == "high_level"
+    assert data["interpretation"]["answer"] == "The dataset has 100 rows and 5 columns."
+
+
+def test_chat_with_dataset_returns_409_at_question_limit(monkeypatch) -> None:
+    def fake_get_question_usage(db, user_id, dataset_id):
+        return _conversation(), 10, 10, 0
+
+    monkeypatch.setattr(
+        conversation_routes,
+        "get_question_usage",
+        fake_get_question_usage,
+    )
+
+    response = TestClient(app).post(
+        f"/api/v1/datasets/{DATASET_ID}/chat",
+        json={"content": "Another question"},
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "conflict"

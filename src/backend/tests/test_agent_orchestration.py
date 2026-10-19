@@ -334,3 +334,69 @@ def test_orchestrator_persists_clarification_without_running_tools(
         "Compare that",
         "Which column should I analyze?",
     ]
+
+
+def test_orchestrator_routes_to_file_qa_without_spinning_up_analysis_run(
+    db_session,
+    monkeypatch,
+) -> None:
+    from app.agent import orchestrator as orch_module
+
+    planner_client = FakeLLMClient(
+        [
+            {
+                "intent": "Answer user question directly from file",
+                "tools": [
+                    {
+                        "name": "file_qa",
+                        "arguments": {"columns": ["age", "region"]},
+                        "reason": "Direct question about regions and age.",
+                    }
+                ],
+            }
+        ]
+    )
+    interpreter_client = FakeLLMClient(
+        [
+            {
+                "answer": "The dataset contains north and south regions with ages 33 and 44.",
+                "key_findings": ["Regions present: north, south"],
+                "limitations": ["Sample size is 2 rows"],
+                "follow_up_questions": ["Would you like to analyze income?"],
+            }
+        ]
+    )
+
+    monkeypatch.setattr(analysis_service, "download_bytes", lambda key: CSV_BYTES)
+    monkeypatch.setattr(orch_module, "download_bytes", lambda key: CSV_BYTES)
+
+    orchestrator = AnalysisAgentOrchestrator(
+        planner=AgentPlanner(llm_client=planner_client),
+        interpreter=AgentInterpreter(llm_client=interpreter_client),
+    )
+
+    result = orchestrator.run(
+        db=db_session,
+        user_id=USER_ID,
+        dataset_id=DATASET_ID,
+        question="What regions are in this dataset?",
+    )
+
+    # AnalysisRun must NOT be created! Heavy tools must NOT spin up!
+    assert result.analysis_run_id is None
+    assert db_session.scalar(select(AnalysisRun)) is None
+
+    # User and assistant messages are saved in conversation
+    messages = list(
+        db_session.scalars(select(Message).order_by(Message.created_at.asc()))
+    )
+    assert len(messages) == 2
+    assert messages[0].role == "user"
+    assert messages[0].content == "What regions are in this dataset?"
+    assert messages[1].role == "assistant"
+    assert messages[1].analysis_run_id is None
+    assert "Regions present: north, south" in messages[1].content
+    assert (
+        result.interpretation.answer
+        == "The dataset contains north and south regions with ages 33 and 44."
+    )
