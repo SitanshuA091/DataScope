@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -55,3 +55,16 @@ class QuestionUsageResponse(BaseModel):
     used: int
     limit: int
     remaining: int
+
+
+class ChatRequest(BaseModel):
+    content: str = Field(min_length=1, max_length=20_000)
+    active_columns: list[str] | None = None
+
+
+class ChatResponse(BaseModel):
+    user_message: MessageResponse
+    assistant_message: MessageResponse
+    analysis_run_id: UUID | None = None
+    plan: dict[str, Any] | None = None
+    interpretation: dict[str, Any] | None = None
