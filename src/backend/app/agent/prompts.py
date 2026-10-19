@@ -6,19 +6,36 @@ from typing import Any
 
 from app.agent.contracts import ConversationTurn, DatasetContext
 
-PLANNER_SYSTEM_PROMPT = """You plan controlled EDA work for a CSV dataset.
+PLANNER_SYSTEM_PROMPT = """You are a dataset query router and planner.
+Given a user question, dataset context, and available tools, select the best action.
+
+Routing rules:
+1. "file_qa": Direct dataset file Q&A.
+   Select this tool for general data inquiries, queries about specific rows/entries, column values, meanings, conversational questions, or summaries. It directly parses the dataset file to the LLM client without spinning up heavy analysis runs.
+   Arguments: {"columns": ["col1", "col2"]} (optional list of columns relevant to the question)
+   Prefer "file_qa" whenever a question can be answered by reviewing the dataset file directly.
+
+2. "quality": Deep data quality audit (outliers via IQR, missingness details, duplicate rows, constant columns, high cardinality text).
+   Select ONLY when the user explicitly asks to audit data quality, find data anomalies/issues, or check data cleanliness.
+
+3. "high_level": Statistical dataset summary (comprehensive shape, dtypes, missingness matrix, duplicate counts, describe table, and optional overview plots).
+   Select ONLY when the user explicitly asks for a high-level statistical summary, full dataset describe profile, or overview charts.
+
+4. "column": In-depth column distribution statistics (quantiles, detailed distribution, histogram buckets, categorical frequency).
+   Select ONLY when the user explicitly asks for statistical distributions, quantiles, or histograms of specific columns.
+
+5. "relationships": Bivariate and multivariate correlation analysis (Pearson/Spearman correlation matrix, top correlated pairs, scatter plots).
+   Select ONLY when the user explicitly asks for correlation matrices, correlations between variables, or relationship plots.
+
 Return only JSON matching this shape:
 {
   "intent": "short description",
   "requires_clarification": false,
   "clarification_question": null,
   "tools": [
-    {"name": "quality|high_level|column|relationships", "arguments": {}, "reason": "..."}
+    {"name": "file_qa|quality|high_level|column|relationships", "arguments": {}, "reason": "..."}
   ]
 }
-Use only available tools. Do not invent columns. Prefer one or two tools unless the request clearly needs more.
-For ambiguous issue-finding requests, choose quality. For schema/type questions, choose high_level.
-For "that", "previous", or selected-column references, use active_columns when available.
 Ask a clarification question only when the request cannot be answered with the schema, active columns, or history."""
 
 INTERPRETER_SYSTEM_PROMPT = """You explain computed EDA results.
@@ -32,6 +49,20 @@ Return only JSON matching this shape:
   "follow_up_questions": ["..."]
 }
 Separate measured findings from caveats. Mention limitations when the tool output is incomplete or failed."""
+
+FILE_QA_SYSTEM_PROMPT = """You are an expert dataset analyst answering questions about a CSV dataset.
+You have been provided with the parsed dataset file content, including schema, column summaries, and sample records.
+Answer the user's question directly, accurately, and concisely based strictly on the provided dataset file content.
+Do not invent information that is not in the data.
+
+Return only JSON matching this shape:
+{
+  "answer": "clear, direct answer to the user's question",
+  "key_findings": ["notable point 1", "notable point 2"],
+  "limitations": ["any caveat about sample or data"],
+  "follow_up_questions": ["relevant follow-up 1"]
+}
+Separate measured findings from caveats. Mention limitations when the data is inconclusive."""
 
 
 def _dataset_payload(context: DatasetContext) -> dict[str, Any]:
@@ -112,3 +143,23 @@ def build_interpreter_messages(
         {"role": "system", "content": INTERPRETER_SYSTEM_PROMPT},
         {"role": "user", "content": json.dumps(payload, default=str)},
     ]
+
+
+def build_file_qa_messages(
+    *,
+    question: str,
+    parsed_file: dict[str, Any],
+    history: list[ConversationTurn] | None = None,
+) -> list[dict[str, str]]:
+    messages = [{"role": "system", "content": FILE_QA_SYSTEM_PROMPT}]
+    if history:
+        messages.extend(_recent_history(history, limit=6))
+    payload = {
+        "question": question,
+        "parsed_file": parsed_file,
+    }
+    messages.append({
+        "role": "user",
+        "content": json.dumps(payload, default=str),
+    })
+    return messages
