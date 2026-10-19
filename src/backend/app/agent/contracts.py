@@ -6,7 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-AgentToolName = Literal["high_level", "column", "relationships", "quality"]
+AgentToolName = Literal["high_level", "column", "relationships", "quality", "file_qa"]
 
 
 class DatasetColumn(BaseModel):
@@ -65,8 +65,6 @@ class AgentPlan(BaseModel):
     def validate_clarification(self) -> AgentPlan:
         if self.requires_clarification and not self.clarification_question:
             raise ValueError("clarification_question is required")
-        if not self.requires_clarification and not self.tools:
-            raise ValueError("at least one tool is required")
         return self
 
 
@@ -85,3 +83,5 @@ class AgentRunResult(BaseModel):
     analysis_run_id: UUID | None = None
     interpretation: AnalysisInterpretation | None = None
     assistant_message: str | None = None
+    user_message_id: UUID | None = None
+    assistant_message_id: UUID | None = None

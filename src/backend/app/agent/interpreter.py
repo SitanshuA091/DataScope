@@ -3,8 +3,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.agent.contracts import AgentPlan, AnalysisInterpretation, DatasetContext
-from app.agent.prompts import build_interpreter_messages
+from app.agent.contracts import (
+    AgentPlan,
+    AnalysisInterpretation,
+    ConversationTurn,
+    DatasetContext,
+)
+from app.agent.prompts import build_file_qa_messages, build_interpreter_messages
 from app.core.config import settings
 from app.core.exceptions import AppError
 from app.integrations.llm_client import LiteLLMClient, LLMClient
@@ -56,5 +61,30 @@ class AgentInterpreter:
         except ValueError as exc:
             raise AgentInterpretationError(
                 "The interpreter returned invalid structured output.",
+                details={"error": str(exc)},
+            ) from exc
+
+    def interpret_file_qa(
+        self,
+        *,
+        question: str,
+        parsed_file: dict[str, Any],
+        history: list[ConversationTurn] | None = None,
+    ) -> AnalysisInterpretation:
+        messages = build_file_qa_messages(
+            question=question,
+            parsed_file=parsed_file,
+            history=history,
+        )
+        raw = self.llm_client.complete_json(
+            model=self.model,
+            messages=messages,
+            temperature=0.2,
+        )
+        try:
+            return AnalysisInterpretation.model_validate(raw)
+        except ValueError as exc:
+            raise AgentInterpretationError(
+                "The interpreter returned invalid structured output for file Q&A.",
                 details={"error": str(exc)},
             ) from exc
