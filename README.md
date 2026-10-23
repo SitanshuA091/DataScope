@@ -1,4 +1,9 @@
-# DataScope
+<a name="readme-top"></a>
+
+<div align="center">
+  <img src="assets/favicon.png" alt="Logo" width="60">
+  <h1 align="center">DataScope </h1>
+</div>
 
 DataScope is a workspace-based exploratory data analysis app for CSV datasets.
 It helps users upload data, inspect schema and quality, run deterministic EDA
