@@ -1,4 +1,9 @@
-# DataScope Backend
+<a name="readme-top"></a>
+
+<div align="center">
+  <img src="../../assets/favicon.png" alt="Logo" width="100">
+  <h1 align="center">DataScope Backend </h1>
+</div>
 
 FastAPI backend for DataScope, a workspace-based exploratory data analysis app.
 The backend owns authentication, workspace state, CSV ingestion, deterministic
