@@ -156,15 +156,6 @@ export default function WorkspacePage({
               ) : null}
             </div>
           </div>
-
-          <ChatPanel
-            activeJobCount={runningRuns.length}
-            datasetId={datasetId}
-            onSubmitted={() => {
-              void refresh();
-            }}
-            workspaceId={workspaceId}
-          />
         </div>
       )}
     </WorkspaceShell>

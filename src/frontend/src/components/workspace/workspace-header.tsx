@@ -24,6 +24,18 @@ export function WorkspaceHeader({
         <Badge variant={datasetStatus === "ready" ? "success" : "neutral"}>
           {datasetStatus}
         </Badge>
+        {datasetStatus === "ready" ? (
+          <Link
+            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            href={`/workspaces/${workspace.id}/chat`}
+          >
+            Chat
+          </Link>
+        ) : (
+          <span className="cursor-not-allowed rounded-md bg-slate-200 px-4 py-2 text-sm font-medium text-slate-500">
+            Chat
+          </span>
+        )}
         <Link
           className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-900 hover:bg-slate-100"
           href={`/workspaces/${workspace.id}/settings`}

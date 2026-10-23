@@ -27,3 +27,25 @@ export type QuestionUsage = {
   limit: number;
   remaining: number;
 };
+
+export type ChatResponse = {
+  user_message: Message;
+  assistant_message: Message;
+  analysis_run_id: string | null;
+  plan: {
+    intent?: string;
+    requires_clarification?: boolean;
+    clarification_question?: string | null;
+    tools?: Array<{
+      name: string;
+      arguments: Record<string, unknown>;
+      reason?: string;
+    }>;
+  } | null;
+  interpretation: {
+    answer: string;
+    key_findings?: string[];
+    limitations?: string[];
+    follow_up_questions?: string[];
+  } | null;
+};
