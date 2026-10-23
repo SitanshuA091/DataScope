@@ -1,7 +1,7 @@
 <a name="readme-top"></a>
 
 <div align="center">
-  <img src="assets/favicon.png" alt="Logo" width="60">
+  <img src="assets/favicon.png" alt="Logo" width="100">
   <h1 align="center">DataScope </h1>
 </div>
 
