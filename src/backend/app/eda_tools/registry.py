@@ -30,7 +30,33 @@ class ToolSpec:
         }
 
 
+def analyze_file_qa(
+    frame: pd.DataFrame,
+    columns: list[str] | None = None,
+    **_kwargs: Any,
+) -> dict[str, object]:
+    cols = [c for c in columns if c in frame.columns] if columns else list(frame.columns)
+    sub = frame[cols] if cols else frame
+    return {
+        "tool": "file_qa",
+        "row_count": len(frame),
+        "column_count": len(frame.columns),
+        "selected_columns": list(sub.columns),
+        "sample_rows": sub.head(25).to_dict(orient="records"),
+    }
+
+
 TOOL_REGISTRY: dict[str, ToolSpec] = {
+    "file_qa": ToolSpec(
+        name="file_qa",
+        description=(
+            "Direct dataset file Q&A: parses sample rows, column types, and file structure to answer questions directly via the LLM client without running heavy statistical analysis."
+        ),
+        function=analyze_file_qa,
+        arguments={
+            "columns": "list[str], optional list of columns relevant to the question",
+        },
+    ),
     "high_level": ToolSpec(
         name="high_level",
         description=(
