@@ -5,6 +5,8 @@
   <h1 align="center">DataScope </h1>
 </div>
 
+![Python](https://img.shields.io/badge/Python-3.13-blue) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat&logo=FastAPI&labelColor=555&logoColor=white) ![LiteLLM](https://img.shields.io/badge/LiteLLM-Multi_Provider-orange) ![PostgresSql](https://img.shields.io/badge/PostgreSQL-316192?logo=postgresql&logoColor=white) ![Redis](https://img.shields.io/badge/Redis-DC382D?style=flat&logo=Redis&logoColor=white) ![CloudfareR2](https://img.shields.io/static/v1?label=%20&message=Cloudflare%20R2&color=222&logo=Cloudflare) ![TypeScript](https://shields.io/badge/TypeScript-3178C6?logo=TypeScript&logoColor=FFF&style=flat-square) ![NextJs](https://img.shields.io/badge/Next.js-000000?logo=next.js&logoColor=white) 
+
 DataScope is a workspace-based exploratory data analysis app for CSV datasets.
 It helps users upload data, inspect schema and quality, run deterministic EDA
 tools, generate charts, and ask guided questions about the dataset without
