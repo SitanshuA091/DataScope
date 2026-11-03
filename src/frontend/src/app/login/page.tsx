@@ -42,7 +42,7 @@ export default function LoginPage() {
         <div className="w-full">
           <h2 className="text-2xl font-semibold">Sign in</h2>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Your backend session is created by the FastAPI Google OAuth flow.
+            sign in with google 
           </p>
           <Button
             className="mt-8 w-full"
