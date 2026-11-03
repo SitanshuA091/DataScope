@@ -16,7 +16,7 @@ export function AppSidebar() {
   }
 
   return (
-    <aside className="w-full border-b border-slate-200 bg-white md:w-64 md:shrink-0 md:border-b-0 md:border-r">
+    <aside className="w-full border-b border-slate-200 bg-white/70 backdrop-blur md:w-64 md:shrink-0 md:border-b-0 md:border-r">
       <div className="flex items-center justify-between gap-3 px-4 py-4 md:block">
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
           Workspaces

@@ -11,7 +11,7 @@ export function WorkspaceHeader({
   datasetStatus: string;
 }) {
   return (
-    <div className="flex flex-col gap-4 border-b border-slate-200 bg-white px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
+    <div className="flex flex-col gap-4 border-b border-slate-200 bg-white/70 backdrop-blur px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
       <div>
         <h1 className="text-2xl font-semibold tracking-normal text-slate-950">
           {workspace.title}
@@ -37,7 +37,7 @@ export function WorkspaceHeader({
           </span>
         )}
         <Link
-          className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-900 hover:bg-slate-100"
+          className="rounded-md border border-slate-300 bg-white/70 backdrop-blur px-4 py-2 text-sm font-medium text-slate-900 hover:bg-slate-100"
           href={`/workspaces/${workspace.id}/settings`}
         >
           Settings

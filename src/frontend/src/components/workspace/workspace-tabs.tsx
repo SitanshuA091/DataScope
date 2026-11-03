@@ -16,7 +16,7 @@ export function WorkspaceTabs({
   onChange: (tab: WorkspaceTab) => void;
 }) {
   return (
-    <div className="flex gap-1 border-b border-slate-200 bg-white px-5">
+    <div className="flex gap-1 border-b border-slate-200 bg-white/70 backdrop-blur px-5">
       {tabs.map((tab) => {
         const isActive = activeTab === tab.id;
 

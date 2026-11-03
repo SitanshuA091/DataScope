@@ -25,6 +25,13 @@ function parseAssistantContent(content: string) {
   return { mainText, findings };
 }
 
+function AgentIcon({ className = "h-6 w-6" }: { className?: string }) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img alt="" className={`${className} shrink-0`} src="/favicon.ico" />
+  );
+}
+
 function MessageToolPreview({
   runId,
   workspaceId,
@@ -49,21 +56,21 @@ function MessageToolPreview({
   const artifacts = results?.artifacts ?? [];
 
   return (
-    <div className="mt-3 border-t border-slate-200/80 pt-2.5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <div className="mt-3 rounded-lg border border-slate-200 bg-white/80">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
         <button
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 hover:text-blue-800 transition"
+          className="flex items-center gap-2 text-xs font-medium text-slate-700 transition hover:text-slate-950"
           onClick={() => setExpanded((prev) => !prev)}
           type="button"
         >
-          <span>
-            {expanded
-              ? "▾ Hide computed tool output"
-              : "▸ View computed tool output & charts"}
+          <span className="grid h-5 w-5 place-items-center rounded bg-emerald-50 text-[11px] text-emerald-700">
+            ✓
           </span>
+          <span>{expanded ? "Hide tool output" : "Tool output & charts"}</span>
+          <span className="text-slate-400">{expanded ? "▾" : "▸"}</span>
           {results?.cache_hit ? (
-            <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 border border-emerald-200">
-              ⚡ Cached
+            <span className="rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+              Cached
             </span>
           ) : null}
         </button>
@@ -72,15 +79,15 @@ function MessageToolPreview({
             className="text-[11px] font-medium text-slate-500 hover:text-blue-700 hover:underline"
             href={`/workspaces/${workspaceId}/runs/${runId}`}
           >
-            Full run details →
+            Run details →
           </Link>
         ) : null}
       </div>
 
       {expanded ? (
-        <div className="mt-3 space-y-3 rounded-md border border-slate-200 bg-white p-3 text-slate-900 shadow-xs">
+        <div className="space-y-3 border-t border-slate-200 p-3 text-slate-900">
           {isLoading ? (
-            <div className="flex items-center gap-2 py-4 text-xs text-slate-500">
+            <div className="flex items-center gap-2 py-3 text-xs text-slate-500">
               <span className="h-3 w-3 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
               Loading tool output...
             </div>
@@ -92,19 +99,21 @@ function MessageToolPreview({
                 <div className="flex flex-wrap gap-1 border-b border-slate-100 pb-2">
                   {toolNames.map((name) => (
                     <button
-                      className={`rounded px-2.5 py-1 text-xs font-medium capitalize transition ${
+                      className={`rounded-md px-2.5 py-1 font-mono text-xs transition ${
                         currentTool === name
-                          ? "bg-blue-600 text-white"
+                          ? "bg-slate-900 text-white"
                           : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                       }`}
                       key={name}
                       onClick={() => setActiveTool(name)}
                       type="button"
                     >
-                      {name.replaceAll("_", " ")}
+                      {name}
                     </button>
                   ))}
                 </div>
+              ) : currentTool ? (
+                <p className="font-mono text-xs text-slate-500">{currentTool}</p>
               ) : null}
 
               {currentTool && toolData ? (
@@ -137,16 +146,14 @@ function ChatMessage({
 
   if (isUser) {
     return (
-      <div className="flex justify-end">
-        <div className="max-w-[85%] rounded-2xl rounded-tr-xs bg-blue-600 px-4 py-2.5 text-white shadow-xs sm:max-w-[75%]">
-          <div className="flex items-baseline justify-between gap-3 text-[11px] text-blue-100">
-            <span className="font-semibold uppercase tracking-wider">You</span>
-            <span>{formatDateTime(message.created_at)}</span>
-          </div>
-          <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed">
-            {message.content}
-          </p>
+      <div className="rounded-xl bg-slate-100 px-4 py-3">
+        <div className="flex items-baseline justify-between gap-3 text-[11px] text-slate-500">
+          <span className="font-semibold uppercase tracking-wider">You</span>
+          <span>{formatDateTime(message.created_at)}</span>
         </div>
+        <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-slate-900">
+          {message.content}
+        </p>
       </div>
     );
   }
@@ -154,13 +161,11 @@ function ChatMessage({
   const { mainText, findings } = parseAssistantContent(message.content);
 
   return (
-    <div className="flex justify-start">
-      <div className="max-w-[92%] rounded-2xl rounded-tl-xs border border-slate-200 bg-white px-4 py-3 text-slate-900 shadow-xs sm:max-w-[85%]">
-        <div className="flex items-baseline justify-between gap-3 text-[11px] text-slate-500">
-          <span className="font-semibold uppercase tracking-wider text-blue-700 flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-blue-600 inline-block" />
-            AI Analyst
-          </span>
+    <div className="flex gap-3">
+      <AgentIcon className="mt-0.5 h-6 w-6" />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline gap-2 text-xs text-slate-500">
+          <span className="font-semibold text-slate-900">DataScope</span>
           <span>{formatDateTime(message.created_at)}</span>
         </div>
 
@@ -169,14 +174,14 @@ function ChatMessage({
         </p>
 
         {findings.length > 0 ? (
-          <div className="mt-3 rounded-lg border border-blue-100 bg-blue-50/50 p-3">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-blue-900">
-              Key Findings
+          <div className="mt-3 border-l-2 border-blue-500 pl-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+              Key findings
             </p>
-            <ul className="mt-1.5 space-y-1 text-xs text-slate-800">
+            <ul className="mt-1.5 space-y-1 text-sm text-slate-800">
               {findings.map((item, idx) => (
-                <li className="flex items-start gap-1.5" key={idx}>
-                  <span className="mt-0.5 text-blue-600 font-bold">•</span>
+                <li className="flex items-start gap-2" key={idx}>
+                  <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-slate-400" />
                   <span>{item}</span>
                 </li>
               ))}
@@ -253,24 +258,9 @@ export function ChatPanel({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-white">
-      <div className="border-b border-slate-200 px-4 py-2">
-        <div className="mx-auto flex max-w-4xl items-center gap-2 text-xs text-slate-500">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-          </span>
-          <span className="font-semibold text-slate-800">Dataset AI Analyst</span>
-          {usage ? (
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
-              {usage.used}/{usage.limit} questions
-            </span>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50/70 px-4 py-4">
-        <div className="mx-auto max-w-4xl space-y-3">
+    <div className="flex min-h-0 flex-1 flex-col bg-transparent">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6">
+        <div className="mx-auto max-w-3xl space-y-6">
           {isLoadingMessages ? (
             <p className="py-2 text-xs text-slate-500">
               Loading conversation history...
@@ -285,27 +275,36 @@ export function ChatPanel({
                 />
               ))}
               {isSending ? (
-                <div className="flex justify-start">
-                  <div className="flex items-center gap-2 rounded-2xl rounded-tl-xs border border-blue-200 bg-blue-50/60 px-4 py-3 text-xs text-blue-900 shadow-xs">
-                    <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
-                    <span>Analyzing dataset & running tools...</span>
+                <div className="flex gap-3">
+                  <AgentIcon className="mt-0.5 h-6 w-6 animate-pulse" />
+                  <div className="min-w-0 flex-1">
+                    <span className="text-xs font-semibold text-slate-900">
+                      DataScope
+                    </span>
+                    <div className="mt-1.5 flex items-center gap-2 text-sm text-slate-600">
+                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+                      <span>Planning and running tools...</span>
+                    </div>
                   </div>
                 </div>
               ) : null}
               <div ref={messagesEndRef} />
             </>
           ) : (
-            <div className="rounded-xl border border-dashed border-slate-200 bg-white p-6 text-center">
-              <p className="text-xs font-medium text-slate-600">
-                Ask any question about your dataset. The analyst will plan the
-                right tools, reuse cached results, and return explanations
-                directly in the chat.
+            <div className="flex flex-col items-center pt-10 text-center">
+              <AgentIcon className="h-10 w-10" />
+              <p className="mt-3 text-base font-semibold text-slate-900">
+                What would you like to investigate?
               </p>
-              <div className="mt-3 flex flex-wrap justify-center gap-1.5">
+              <p className="mt-1 max-w-md text-xs text-slate-500">
+                The agent plans the right tools, reuses cached results, and
+                explains the computed output.
+              </p>
+              <div className="mt-5 grid w-full max-w-xl gap-2 sm:grid-cols-2">
                 {QUICK_PROMPTS.map((prompt) => (
                   <button
-                    className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700 transition hover:border-blue-400 hover:bg-blue-50 hover:text-blue-800"
-                    disabled={!datasetId || isSending}
+                    className="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-left text-xs text-slate-700 transition hover:border-blue-400 hover:bg-blue-50 hover:text-blue-800 disabled:opacity-50"
+                    disabled={!datasetId || isSending || atJobLimit}
                     key={prompt}
                     onClick={() => void handleSend(prompt)}
                     type="button"
@@ -319,61 +318,67 @@ export function ChatPanel({
         </div>
       </div>
 
-      <div className="border-t border-slate-200 bg-white px-4 py-3">
-        <div className="mx-auto max-w-4xl">
-          <form
-            className="flex flex-col gap-2 sm:flex-row sm:items-end"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void handleSend();
-            }}
-          >
-            <textarea
-              className="max-h-32 min-h-[50px] w-full flex-1 resize-none rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-950 placeholder:text-slate-400 focus:border-blue-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500"
-              disabled={!datasetId || isSending || atQuestionLimit}
-              onChange={(event) => setQuestion(event.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={
-                !datasetId
-                  ? "Upload a dataset before asking a question."
-                  : atQuestionLimit
-                    ? "Question limit reached for this session."
-                    : "Ask a question about this dataset (Enter to send, Shift+Enter for newline)..."
-              }
-              rows={2}
-              value={question}
-            />
-            <Button
-              className="h-11 shrink-0 rounded-xl sm:w-28"
-              disabled={
-                !datasetId ||
-                isSending ||
-                !question.trim() ||
-                atQuestionLimit ||
-                atJobLimit
-              }
-              type="submit"
-            >
-              {isSending ? (
-                <span className="flex items-center gap-1.5">
-                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  Thinking
+      <div className="border-t border-slate-200 bg-white/60 px-4 py-4 backdrop-blur">
+        <div className="mx-auto max-w-3xl">
+          <div className="rounded-2xl border border-slate-300 bg-white/80 shadow-xs focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
+            <div className="flex items-center gap-2 px-3.5 pt-3">
+              <AgentIcon className="h-5 w-5" />
+              <span className="text-xs font-semibold text-slate-900">
+                DataScope
+              </span>
+              {usage ? (
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                  {usage.used}/{usage.limit} questions
                 </span>
-              ) : (
-                "Send"
-              )}
-            </Button>
-          </form>
+              ) : null}
+            </div>
+            <form
+              className="flex items-end gap-2 px-3.5 pb-3 pt-1"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void handleSend();
+              }}
+            >
+              <textarea
+                className="max-h-40 min-h-[44px] w-full flex-1 resize-none bg-transparent text-sm text-slate-950 placeholder:text-slate-400 focus:outline-hidden"
+                disabled={!datasetId || isSending || atQuestionLimit}
+                onChange={(event) => setQuestion(event.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={
+                  !datasetId
+                    ? "Upload a dataset before asking a question."
+                    : atQuestionLimit
+                      ? "Question limit reached for this session."
+                      : "Ask DataScope to investigate this dataset..."
+                }
+                rows={2}
+                value={question}
+              />
+              <Button
+                className="h-9 shrink-0 rounded-lg px-4"
+                disabled={
+                  !datasetId ||
+                  isSending ||
+                  !question.trim() ||
+                  atQuestionLimit ||
+                  atJobLimit
+                }
+                type="submit"
+              >
+                {isSending ? "Working" : "Send"}
+              </Button>
+            </form>
+          </div>
 
           {atJobLimit ? (
-            <p className="mt-1 text-xs text-amber-700">
+            <p className="mt-2 text-xs text-amber-700">
               Two analyses are already active. Wait for one to finish before
               starting a new run.
             </p>
           ) : null}
 
           {conversationError ? (
-            <p className="mt-1 text-xs text-red-600">{conversationError}</p>
+            <p className="mt-2 text-xs text-red-600">{conversationError}</p>
           ) : null}
         </div>
       </div>

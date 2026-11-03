@@ -26,7 +26,7 @@ export function DatasetOverview({
 
   if (!item?.current_version) {
     return (
-      <section className="border-b border-slate-200 bg-white px-5 py-5">
+      <section className="border-b border-slate-200 bg-white/70 backdrop-blur px-5 py-5">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="text-base font-semibold text-slate-950">
@@ -46,7 +46,7 @@ export function DatasetOverview({
   const version = item.current_version;
 
   return (
-    <section className="border-b border-slate-200 bg-white px-5 py-5">
+    <section className="border-b border-slate-200 bg-white/70 backdrop-blur px-5 py-5">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <div className="flex flex-wrap items-center gap-3">

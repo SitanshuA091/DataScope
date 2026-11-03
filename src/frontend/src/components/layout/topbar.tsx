@@ -16,7 +16,7 @@ export function Topbar() {
   }
 
   return (
-    <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 md:px-6">
+    <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-300 bg-slate-200 px-4 md:px-6">
       <Link className="flex items-center gap-2" href="/workspaces">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img alt="" className="h-7 w-7" src="/favicon.ico" />
@@ -35,7 +35,7 @@ export function Topbar() {
           <p className="truncate text-sm font-medium text-slate-900">
             {user?.name ?? "Signed in"}
           </p>
-          <p className="truncate text-xs text-slate-500">{user?.email}</p>
+          <p className="truncate text-xs text-slate-600">{user?.email}</p>
         </div>
         <Button onClick={handleLogout} variant="secondary">
           Sign out
