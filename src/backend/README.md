@@ -1,18 +1,17 @@
+
 <a name="readme-top"></a>
 
-<div align="center">
-  <img src="../../assets/favicon.png" alt="Logo" width="100">
-  <h1 align="center">DataScope Backend </h1>
-</div>
+<h1 align="left">
+  <img src="../../assets/favicon.png" alt="DataScope logo" width="36" align="absmiddle">
+  DataScope Backend
+</h1>
 
-FastAPI backend for DataScope, a workspace-based exploratory data analysis app.
-The backend owns authentication, workspace state, CSV ingestion, deterministic
-EDA execution, LLM-assisted interpretation, persisted analysis history, and live
+FastAPI backend for DataScope.The backend owns authentication, workspace state, CSV ingestion, deterministic EDA execution, LLM-assisted interpretation, persisted analysis history, and live
 job updates.
 
-![Backend design](../../assets/BackendDesign.png)
-
 ## Architecture
+
+![Backend design](../../assets/BackendDesign.png)
 
 The service is built around a small number of durable records: users,
 workspaces, datasets, immutable dataset versions, conversations, analysis runs,
@@ -81,101 +80,3 @@ All API routes are mounted under `/api/v1`.
   tool version. Redis is the hot cache; Postgres keeps completed runs through
   workspace retention.
 - Workspace retention defaults to 30 inactive days plus a 7 day restore window.
-
-## Local Setup
-
-Install dependencies:
-
-```powershell
-cd C:\DataScope\src\backend
-uv sync
-```
-
-Start local Postgres and Redis from the repo root:
-
-```powershell
-cd C:\DataScope
-docker compose up postgres redis
-```
-
-Configure `src/backend/.env`:
-
-```env
-APP_ENV=local
-DEBUG=true
-DOCS_ENABLED=true
-FRONTEND_URL=http://localhost:3000
-CORS_ORIGINS=["http://localhost:3000"]
-
-SESSION_SECRET_KEY=replace-me
-
-GOOGLE_CLIENT_ID=replace-me
-GOOGLE_CLIENT_SECRET=replace-me
-GOOGLE_OAUTH_REDIRECT_URI=http://localhost:8000/api/v1/auth/google/callback
-
-GOOGLE_API_KEY=replace-me
-GROQ_API_KEY=replace-me
-
-DATABASE_URL=postgresql+psycopg://datascope:datascope@localhost:5432/datascope
-REDIS_URL=redis://localhost:6379/0
-
-R2_ENDPOINT_URL=https://<account-id>.r2.cloudflarestorage.com
-R2_ACCESS_KEY_ID=replace-me
-R2_SECRET_ACCESS_KEY=replace-me
-R2_BUCKET_NAME=replace-me
-R2_REGION_NAME=auto
-```
-
-Run migrations and start the API:
-
-```powershell
-uv run alembic upgrade head
-uv run uvicorn app.main:app --reload
-```
-
-Open:
-
-```text
-http://localhost:8000/docs
-```
-
-## Workers
-
-Analysis jobs that are not executed inline require a Celery worker:
-
-```powershell
-cd C:\DataScope\src\backend
-uv run celery -A app.workers.celery_app.celery_app worker --loglevel=INFO
-```
-
-Redis must be available through `REDIS_URL` for queued runs, progress events,
-and hot cache reuse.
-
-## Tests
-
-```powershell
-cd C:\DataScope\src\backend
-uv run pytest
-```
-
-The tests cover workspace routes, dataset upload/validation, storage behavior,
-analysis routes/tasks, deterministic EDA tools, conversations, and agent
-orchestration.
-
-## Deployment Shape
-
-The intended split is:
-
-```text
-Frontend:  Vercel or another Next.js host
-Backend:   FastAPI API and Celery worker
-Database:  Managed Postgres
-Queue:     Redis
-Storage:   Cloudflare R2
-Auth:      Google OAuth
-LLM:       LiteLLM-backed Google/Groq providers
-```
-
-Use Docker Compose locally for Postgres and Redis. For production, keep
-Postgres and R2 managed, set all secrets through the deployment platform, and
-run the API and worker as separate processes or containers.
