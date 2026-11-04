@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     )
 
     # Application
-    app_name: str = "DataLens API"
+    app_name: str = "DataScope API"
     app_version: str = "0.1.0"
     app_env: Literal["local", "development", "staging", "production"] = "development"
     debug: bool = False
@@ -32,7 +32,7 @@ class Settings(BaseSettings):
 
     # Secure application session cookie
     session_secret_key: SecretStr
-    session_cookie_name: str = "datalens_session"
+    session_cookie_name: str = "datascope_session"
     session_max_age_seconds: int = 60 * 60 * 24 * 7
     session_same_site: Literal["lax", "strict", "none"] = "lax"
 
