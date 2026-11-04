@@ -16,7 +16,7 @@ The core idea is simple: compute statistics and visualizations with reliable
 tooling, then use an agent layer to plan analysis steps and explain the
 structured results in plain language.
 
-## What It Does
+## **What It Does**
 
 - Organizes analysis around user workspaces and dataset versions.
 - Accepts CSV uploads with validation, profiling, and durable storage.
@@ -55,33 +55,89 @@ The backend has a more detailed README at
 [`src/backend/README.md`](src/backend/README.md), including full API routes,
 environment variables, worker commands, and backend-specific rules.
 
-## Local Development
+## Local Setup
 
-Start infrastructure and the backend from the repository root:
+Prerequisites: Docker Desktop, uv, Node.js.
 
-```powershell
-docker compose up postgres redis backend
+### 1. Environment variables
+- Create `src/backend/.env` (see `.env.example`).
+- For local runs use:
+  - `DATABASE_URL=postgresql+psycopg://datascope:datascope@localhost:5432/datascope`
+  - `REDIS_URL=redis://localhost:6379/0`
+- Add the R2, Groq, Gemini and Google OAuth values.
+- No spaces around `=` and no quotes around values.
+
+### 2. Start Postgres and Redis
+Run from the repository root:
+```cmd
+docker compose up -d postgres redis
+```
+- This pulls the images on first run, creates the containers and keeps them running in the background.
+- Always name the services. A bare `docker compose up` also starts the compose `backend` service, which clashes with port 8000.
+
+Check they are running (postgres should show healthy):
+```cmd
+docker compose ps
 ```
 
-Start the frontend in a second terminal:
+View logs when needed:
+```cmd
+docker compose logs -f postgres redis
+```
 
-```powershell
+### 3. Backend API
+```cmd
+cd src/backend
+uv sync
+uv run alembic upgrade head
+uv run uvicorn app.main:app --reload
+```
+- `alembic upgrade head` creates the database tables. Run it on first setup and after pulling new migrations.
+- API docs: http://localhost:8000/docs
+- Health check: http://localhost:8000/health
+
+### 4. Celery worker
+In a new terminal:
+```cmd
+cd src/backend
+uv run celery -A app.workers.celery_app:celery_app worker --loglevel=info --pool=solo
+```
+
+### 5. Frontend
+In a new terminal:
+```cmd
 cd src/frontend
 npm install
 npm run dev
 ```
+- App: http://localhost:3000
 
-Useful local URLs:
-
-```text
-Frontend: http://localhost:3000
-Backend:  http://localhost:8000
-API docs: http://localhost:8000/docs
+### Stop and reset
+Stop the containers and keep the data:
+```cmd
+docker compose stop postgres redis
+```
+Remove the containers and keep the data volumes:
+```cmd
+docker compose down
+```
+Remove the containers and delete all database data:
+```cmd
+docker compose down -v
 ```
 
-For direct backend development without the Docker backend service, use
-`uv` inside `src/backend`, configure `.env`, run Alembic migrations, and start
-Uvicorn as described in the backend README.
+----
+
+### Tests
+
+```cmd
+cd C:\DataScope\src\backend
+uv run pytest
+```
+
+The tests cover workspace routes, dataset upload/validation, storage behavior,
+analysis routes/tasks, deterministic EDA tools, conversations, and agent
+orchestration.
 
 ## Current Scope
 
@@ -107,26 +163,15 @@ A practical production deployment can keep the app split by responsibility:
 | Frontend | Vercel, Netlify, or a containerized Next.js host. |
 | API | Containerized FastAPI service on Render, Fly.io, Railway, AWS ECS, GCP Cloud Run, or Kubernetes. |
 | Workers | Separate Celery worker process/container scaled independently from the API. |
-| Database | Managed Postgres with automated backups and migration jobs. |
+| Database | Managed Postgres instance via Supabase with automated backups and migration jobs. |
 | Redis | Managed Redis for Celery broker, progress events, and hot cache entries. |
 | Object storage | Cloudflare R2 bucket for CSV uploads and generated chart files. |
 | Secrets | Platform-managed environment variables for OAuth, session, LLM, database, Redis, and R2 credentials. |
 
-Recommended rollout path:
 
-1. Deploy frontend and backend separately, with the frontend calling the backend
-   through a stable public API URL.
-2. Run database migrations as a release step before new backend containers
-   receive traffic.
-3. Run API and Celery workers as separate services so analysis jobs do not block
-   request handling.
-4. Keep Postgres and object storage managed from the start; they are the
-   important durable parts of the system.
-5. Add CI checks for backend tests, frontend lint/build, and migration sanity
-   before enabling automatic deployment.
+
 
 ## Notes
 
-Design docs live in `docs/`, while implementation lives under `src/`. The root
-README is meant to explain the whole product and deployment shape; service-level
+Detailed Design docs live in `docs/`, while implementation lives under `src/`.The root README is meant to explain the whole platform and deployment shape; service-level
 details should stay in the frontend and backend READMEs.
