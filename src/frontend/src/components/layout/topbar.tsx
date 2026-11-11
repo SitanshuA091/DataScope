@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -25,6 +26,7 @@ export function Topbar() {
         </span>
       </Link>
       <div className="flex min-w-0 items-center gap-3">
+        <ThemeToggle />
         <UserAvatar
           avatarUrl={user?.avatar_url}
           className="h-9 w-9"
