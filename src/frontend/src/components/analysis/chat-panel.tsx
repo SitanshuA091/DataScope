@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { AppLogo } from "@/components/ui/app-logo";
 import { useConversation } from "@/hooks/use-conversation";
 import { useRunResults } from "@/hooks/use-run-results";
 import { formatDateTime } from "@/lib/formatters";
@@ -25,10 +25,43 @@ function parseAssistantContent(content: string) {
   return { mainText, findings };
 }
 
-function AgentIcon({ className = "h-6 w-6" }: { className?: string }) {
+function Svg({
+  className = "h-4 w-4",
+  children,
+}: {
+  className?: string;
+  children: ReactNode;
+}) {
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img alt="" className={`${className} shrink-0`} src="/favicon.ico" />
+    <svg
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+    >
+      {children}
+    </svg>
+  );
+}
+
+function AgentAvatar({
+  large = false,
+  pulsing = false,
+}: {
+  large?: boolean;
+  pulsing?: boolean;
+}) {
+  return (
+    <div
+      className={`grid shrink-0 place-items-center rounded-xl bg-white/80 ring-1 ring-slate-200 shadow-xs ${
+        large ? "h-14 w-14" : "h-8 w-8"
+      } ${pulsing ? "animate-pulse" : ""}`}
+    >
+      <AppLogo className={large ? "h-8 w-8" : "h-5 w-5"} />
+    </div>
   );
 }
 
@@ -56,36 +89,47 @@ function MessageToolPreview({
   const artifacts = results?.artifacts ?? [];
 
   return (
-    <div className="mt-3 rounded-lg border border-slate-200 bg-white/80">
-      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+    <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-white/70 shadow-xs backdrop-blur">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5">
         <button
-          className="flex items-center gap-2 text-xs font-medium text-slate-700 transition hover:text-slate-950"
+          className="flex items-center gap-2.5 text-xs font-medium text-slate-700 transition hover:text-slate-950"
           onClick={() => setExpanded((prev) => !prev)}
           type="button"
         >
-          <span className="grid h-5 w-5 place-items-center rounded bg-emerald-50 text-[11px] text-emerald-700">
-            ✓
+          <span className="grid h-6 w-6 place-items-center rounded-full bg-emerald-100 text-emerald-700">
+            <Svg className="h-3.5 w-3.5">
+              <path d="M20 6 9 17l-5-5" />
+            </Svg>
           </span>
           <span>{expanded ? "Hide tool output" : "Tool output & charts"}</span>
-          <span className="text-slate-400">{expanded ? "▾" : "▸"}</span>
+          <Svg
+            className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${
+              expanded ? "rotate-180" : ""
+            }`}
+          >
+            <path d="m6 9 6 6 6-6" />
+          </Svg>
           {results?.cache_hit ? (
-            <span className="rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
               Cached
             </span>
           ) : null}
         </button>
         {workspaceId ? (
           <Link
-            className="text-[11px] font-medium text-slate-500 hover:text-blue-700 hover:underline"
+            className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 transition hover:text-blue-700"
             href={`/workspaces/${workspaceId}/runs/${runId}`}
           >
-            Run details →
+            Run details
+            <Svg className="h-3 w-3">
+              <path d="M5 12h14M13 6l6 6-6 6" />
+            </Svg>
           </Link>
         ) : null}
       </div>
 
       {expanded ? (
-        <div className="space-y-3 border-t border-slate-200 p-3 text-slate-900">
+        <div className="fade-up space-y-3 border-t border-slate-200 p-3 text-slate-900">
           {isLoading ? (
             <div className="flex items-center gap-2 py-3 text-xs text-slate-500">
               <span className="h-3 w-3 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
@@ -96,24 +140,26 @@ function MessageToolPreview({
           ) : (
             <>
               {toolNames.length > 1 ? (
-                <div className="flex flex-wrap gap-1 border-b border-slate-100 pb-2">
+                <div className="inline-flex flex-wrap gap-1 rounded-lg bg-slate-100 p-1">
                   {toolNames.map((name) => (
                     <button
-                      className={`rounded-md px-2.5 py-1 font-mono text-xs transition ${
+                      className={`rounded-md px-3 py-1 text-xs font-medium capitalize transition ${
                         currentTool === name
-                          ? "bg-slate-900 text-white"
-                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                          ? "bg-white text-slate-950 shadow-xs"
+                          : "text-slate-600 hover:text-slate-900"
                       }`}
                       key={name}
                       onClick={() => setActiveTool(name)}
                       type="button"
                     >
-                      {name}
+                      {name.replaceAll("_", " ")}
                     </button>
                   ))}
                 </div>
               ) : currentTool ? (
-                <p className="font-mono text-xs text-slate-500">{currentTool}</p>
+                <p className="text-xs font-medium capitalize text-slate-500">
+                  {currentTool.replaceAll("_", " ")}
+                </p>
               ) : null}
 
               {currentTool && toolData ? (
@@ -146,14 +192,15 @@ function ChatMessage({
 
   if (isUser) {
     return (
-      <div className="rounded-xl bg-slate-100 px-4 py-3">
-        <div className="flex items-baseline justify-between gap-3 text-[11px] text-slate-500">
-          <span className="font-semibold uppercase tracking-wider">You</span>
-          <span>{formatDateTime(message.created_at)}</span>
+      <div className="fade-up flex flex-col items-end">
+        <div className="max-w-[85%] rounded-2xl rounded-br-md bg-blue-600 px-4 py-2.5 text-white shadow-sm">
+          <p className="whitespace-pre-wrap text-sm leading-relaxed">
+            {message.content}
+          </p>
         </div>
-        <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-slate-900">
-          {message.content}
-        </p>
+        <span className="mt-1 text-[11px] text-slate-500">
+          {formatDateTime(message.created_at)}
+        </span>
       </div>
     );
   }
@@ -161,33 +208,39 @@ function ChatMessage({
   const { mainText, findings } = parseAssistantContent(message.content);
 
   return (
-    <div className="flex gap-3">
-      <AgentIcon className="mt-0.5 h-6 w-6" />
+    <div className="fade-up flex gap-3">
+      <AgentAvatar />
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2 text-xs text-slate-500">
           <span className="font-semibold text-slate-900">DataScope</span>
           <span>{formatDateTime(message.created_at)}</span>
         </div>
 
-        <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-slate-800">
-          {mainText}
-        </p>
+        <div className="mt-1.5 rounded-2xl rounded-tl-md border border-slate-200 bg-white/80 px-4 py-3 shadow-xs backdrop-blur">
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-800">
+            {mainText}
+          </p>
 
-        {findings.length > 0 ? (
-          <div className="mt-3 border-l-2 border-blue-500 pl-3">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-              Key findings
-            </p>
-            <ul className="mt-1.5 space-y-1 text-sm text-slate-800">
-              {findings.map((item, idx) => (
-                <li className="flex items-start gap-2" key={idx}>
-                  <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-slate-400" />
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
+          {findings.length > 0 ? (
+            <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/70 p-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-blue-800">
+                Key findings
+              </p>
+              <ul className="mt-2 space-y-1.5 text-sm text-slate-800">
+                {findings.map((item, idx) => (
+                  <li className="flex items-start gap-2" key={idx}>
+                    <span className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-blue-600 text-white">
+                      <Svg className="h-2.5 w-2.5">
+                        <path d="M20 6 9 17l-5-5" />
+                      </Svg>
+                    </span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
 
         {message.analysis_run_id ? (
           <MessageToolPreview
@@ -201,10 +254,53 @@ function ChatMessage({
 }
 
 const QUICK_PROMPTS = [
-  "High-level overview & dataset shape",
-  "Check data quality & missing values",
-  "Analyze numeric column distributions",
-  "Find correlations between variables",
+  {
+    label: "Dataset overview",
+    hint: "Shape, types and summary",
+    text: "High-level overview & dataset shape",
+    icon: (
+      <>
+        <rect height="7" rx="1" width="7" x="3" y="3" />
+        <rect height="7" rx="1" width="7" x="14" y="3" />
+        <rect height="7" rx="1" width="7" x="3" y="14" />
+        <rect height="7" rx="1" width="7" x="14" y="14" />
+      </>
+    ),
+  },
+  {
+    label: "Data quality",
+    hint: "Missing values and issues",
+    text: "Check data quality & missing values",
+    icon: (
+      <>
+        <path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" />
+        <path d="m9 12 2 2 4-4" />
+      </>
+    ),
+  },
+  {
+    label: "Distributions",
+    hint: "Numeric column spread",
+    text: "Analyze numeric column distributions",
+    icon: (
+      <>
+        <path d="M3 3v18h18" />
+        <path d="M7 15v3M12 9v9M17 12v6" />
+      </>
+    ),
+  },
+  {
+    label: "Correlations",
+    hint: "Relationships between variables",
+    text: "Find correlations between variables",
+    icon: (
+      <>
+        <circle cx="7" cy="17" r="2" />
+        <circle cx="17" cy="7" r="2" />
+        <path d="M9 15l6-6" />
+      </>
+    ),
+  },
 ];
 
 export function ChatPanel({
@@ -232,6 +328,9 @@ export function ChatPanel({
 
   const atQuestionLimit = usage?.remaining === 0;
   const atJobLimit = activeJobCount >= 2;
+  const usagePercent = usage
+    ? Math.min(100, (usage.used / Math.max(usage.limit, 1)) * 100)
+    : 0;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -262,9 +361,10 @@ export function ChatPanel({
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6">
         <div className="mx-auto max-w-3xl space-y-6">
           {isLoadingMessages ? (
-            <p className="py-2 text-xs text-slate-500">
-              Loading conversation history...
-            </p>
+            <div className="space-y-4">
+              <div className="h-16 w-2/3 animate-pulse rounded-2xl bg-slate-200" />
+              <div className="ml-auto h-10 w-1/2 animate-pulse rounded-2xl bg-slate-200" />
+            </div>
           ) : messages.length > 0 ? (
             <>
               {messages.map((message) => (
@@ -275,15 +375,25 @@ export function ChatPanel({
                 />
               ))}
               {isSending ? (
-                <div className="flex gap-3">
-                  <AgentIcon className="mt-0.5 h-6 w-6 animate-pulse" />
+                <div className="fade-up flex gap-3">
+                  <AgentAvatar pulsing />
                   <div className="min-w-0 flex-1">
                     <span className="text-xs font-semibold text-slate-900">
                       DataScope
                     </span>
-                    <div className="mt-1.5 flex items-center gap-2 text-sm text-slate-600">
-                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
-                      <span>Planning and running tools...</span>
+                    <div className="mt-1.5 inline-flex items-center gap-3 rounded-2xl rounded-tl-md border border-slate-200 bg-white/80 px-4 py-3 shadow-xs backdrop-blur">
+                      <span className="flex items-center gap-1">
+                        {[0, 150, 300].map((delay) => (
+                          <span
+                            className="h-1.5 w-1.5 animate-bounce rounded-full bg-blue-600"
+                            key={delay}
+                            style={{ animationDelay: `${delay}ms` }}
+                          />
+                        ))}
+                      </span>
+                      <span className="text-sm text-slate-600">
+                        Planning and running tools...
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -291,25 +401,35 @@ export function ChatPanel({
               <div ref={messagesEndRef} />
             </>
           ) : (
-            <div className="flex flex-col items-center pt-10 text-center">
-              <AgentIcon className="h-10 w-10" />
-              <p className="mt-3 text-base font-semibold text-slate-900">
+            <div className="fade-up flex flex-col items-center pt-8 text-center">
+              <AgentAvatar large />
+              <h2 className="mt-4 text-xl font-semibold text-slate-900">
                 What would you like to investigate?
-              </p>
-              <p className="mt-1 max-w-md text-xs text-slate-500">
+              </h2>
+              <p className="mt-1.5 max-w-md text-sm text-slate-500">
                 The agent plans the right tools, reuses cached results, and
                 explains the computed output.
               </p>
-              <div className="mt-5 grid w-full max-w-xl gap-2 sm:grid-cols-2">
+              <div className="mt-6 grid w-full max-w-xl gap-3 sm:grid-cols-2">
                 {QUICK_PROMPTS.map((prompt) => (
                   <button
-                    className="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-left text-xs text-slate-700 transition hover:border-blue-400 hover:bg-blue-50 hover:text-blue-800 disabled:opacity-50"
+                    className="card-lift flex items-start gap-3 rounded-xl border border-slate-200 bg-white/80 p-3.5 text-left shadow-xs disabled:opacity-50"
                     disabled={!datasetId || isSending || atJobLimit}
-                    key={prompt}
-                    onClick={() => void handleSend(prompt)}
+                    key={prompt.label}
+                    onClick={() => void handleSend(prompt.text)}
                     type="button"
                   >
-                    {prompt}
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-blue-50 text-blue-700 ring-1 ring-blue-100">
+                      <Svg className="h-5 w-5">{prompt.icon}</Svg>
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold text-slate-900">
+                        {prompt.label}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-slate-500">
+                        {prompt.hint}
+                      </span>
+                    </span>
                   </button>
                 ))}
               </div>
@@ -320,27 +440,15 @@ export function ChatPanel({
 
       <div className="border-t border-slate-200 bg-white/60 px-4 py-4 backdrop-blur">
         <div className="mx-auto max-w-3xl">
-          <div className="rounded-2xl border border-slate-300 bg-white/80 shadow-xs focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
-            <div className="flex items-center gap-2 px-3.5 pt-3">
-              <AgentIcon className="h-5 w-5" />
-              <span className="text-xs font-semibold text-slate-900">
-                DataScope
-              </span>
-              {usage ? (
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
-                  {usage.used}/{usage.limit} questions
-                </span>
-              ) : null}
-            </div>
+          <div className="rounded-2xl border border-slate-300 bg-white/80 shadow-lg shadow-slate-900/5 transition focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/30">
             <form
-              className="flex items-end gap-2 px-3.5 pb-3 pt-1"
               onSubmit={(event) => {
                 event.preventDefault();
                 void handleSend();
               }}
             >
               <textarea
-                className="max-h-40 min-h-[44px] w-full flex-1 resize-none bg-transparent text-sm text-slate-950 placeholder:text-slate-400 focus:outline-hidden"
+                className="max-h-40 min-h-[56px] w-full resize-none bg-transparent px-4 pt-3.5 text-sm text-slate-950 placeholder:text-slate-400 focus:outline-hidden"
                 disabled={!datasetId || isSending || atQuestionLimit}
                 onChange={(event) => setQuestion(event.target.value)}
                 onKeyDown={handleKeyDown}
@@ -354,19 +462,57 @@ export function ChatPanel({
                 rows={2}
                 value={question}
               />
-              <Button
-                className="h-9 shrink-0 rounded-lg px-4"
-                disabled={
-                  !datasetId ||
-                  isSending ||
-                  !question.trim() ||
-                  atQuestionLimit ||
-                  atJobLimit
-                }
-                type="submit"
-              >
-                {isSending ? "Working" : "Send"}
-              </Button>
+              <div className="flex items-center justify-between gap-3 px-3 pb-3 pt-1">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <AppLogo className="h-4 w-4" />
+                    <span className="text-xs font-semibold text-slate-900">
+                      DataScope
+                    </span>
+                  </div>
+                  {usage ? (
+                    <div
+                      className="flex items-center gap-2"
+                      title={`${usage.used} of ${usage.limit} questions used`}
+                    >
+                      <div className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-200">
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            atQuestionLimit ? "bg-red-600" : "bg-blue-600"
+                          }`}
+                          style={{ width: `${usagePercent}%` }}
+                        />
+                      </div>
+                      <span className="text-[11px] font-medium text-slate-500">
+                        {usage.used}/{usage.limit}
+                      </span>
+                    </div>
+                  ) : null}
+                  <span className="hidden text-[11px] text-slate-400 sm:inline">
+                    Enter to send · Shift+Enter for new line
+                  </span>
+                </div>
+                <button
+                  aria-label="Send"
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-blue-600 text-white shadow-sm transition hover:bg-blue-500 active:scale-95 disabled:cursor-not-allowed disabled:bg-blue-600/40"
+                  disabled={
+                    !datasetId ||
+                    isSending ||
+                    !question.trim() ||
+                    atQuestionLimit ||
+                    atJobLimit
+                  }
+                  type="submit"
+                >
+                  {isSending ? (
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  ) : (
+                    <Svg className="h-4 w-4">
+                      <path d="M12 19V5M5 12l7-7 7 7" />
+                    </Svg>
+                  )}
+                </button>
+              </div>
             </form>
           </div>
 
