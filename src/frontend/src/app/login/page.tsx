@@ -63,9 +63,7 @@ const FEATURES = [
     title: "Ask the agent",
     text: "It picks the right analysis tools and explains computed results.",
     icon: (
-      <>
-        <path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-      </>
+      <path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
     ),
   },
   {
@@ -91,18 +89,18 @@ export default function LoginPage() {
   }, [isLoading, router, user]);
 
   return (
-    <main className="grid min-h-screen lg:grid-cols-[1fr_480px]">
-      <section className="relative flex min-h-[52vh] flex-col justify-between overflow-hidden bg-[linear-gradient(135deg,#dbeafe_0%,#eef2ff_50%,#e0f2fe_100%)] px-6 py-8 text-slate-950 lg:min-h-screen lg:px-14 dark:bg-[linear-gradient(135deg,#0b0f16_0%,#151b26_55%,#1d2532_100%)]">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-blue-400/30 blur-3xl dark:bg-slate-400/10"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -bottom-24 right-0 h-80 w-80 rounded-full bg-violet-400/25 blur-3xl dark:bg-slate-500/10"
-        />
+    <main className="relative min-h-screen overflow-hidden bg-[linear-gradient(160deg,#dbeafe_0%,#eef2ff_45%,#e0f2fe_100%)] text-slate-950 dark:bg-[linear-gradient(160deg,#090c12_0%,#131923_55%,#1b2330_100%)]">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -left-24 -top-24 h-80 w-80 rounded-full bg-blue-400/30 blur-3xl dark:bg-slate-400/10"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -bottom-32 right-0 h-96 w-96 rounded-full bg-violet-400/25 blur-3xl dark:bg-slate-500/10"
+      />
 
-        <div className="relative flex items-center justify-between">
+      <div className="relative mx-auto flex min-h-screen w-full max-w-4xl flex-col px-6 py-8">
+        <header className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <AppLogo className="h-10 w-10" />
             <span className="app-brand text-3xl font-semibold tracking-normal">
@@ -110,22 +108,24 @@ export default function LoginPage() {
             </span>
           </div>
           <ThemeToggle />
-        </div>
+        </header>
 
-        <div className="relative max-w-3xl py-10">
-          <span className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white/60 px-3 py-1 text-xs font-medium uppercase tracking-wide text-slate-700 backdrop-blur dark:bg-white/5">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            Dataset analysis workspace
-          </span>
-          <h1 className="mt-5 max-w-2xl text-4xl font-semibold tracking-normal sm:text-5xl">
-            Turn uploaded CSVs into reusable analysis records.
-          </h1>
-          <p className="mt-5 max-w-xl text-base leading-7 text-slate-600">
-            Sign in to manage workspaces, upload datasets, inspect schema
-            quality, and run guided analysis jobs.
-          </p>
+        <div className="flex flex-1 flex-col justify-center gap-10 py-12">
+          <div>
+            <span className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white/60 px-3 py-1 text-xs font-medium uppercase tracking-wide text-slate-700 backdrop-blur dark:bg-white/5">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              Dataset analysis workspace
+            </span>
+            <h1 className="mt-5 text-4xl font-semibold tracking-normal sm:text-5xl">
+              Turn uploaded CSVs into reusable analysis records.
+            </h1>
+            <p className="mt-5 max-w-xl text-base leading-7 text-slate-600">
+              Sign in to manage workspaces, upload datasets, inspect schema
+              quality, and run guided analysis jobs.
+            </p>
+          </div>
 
-          <div className="mt-8 grid max-w-2xl gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-3">
             {FEATURES.map((feature) => (
               <div
                 className="rounded-xl border border-slate-200 bg-white/60 p-4 backdrop-blur transition hover:-translate-y-0.5 hover:border-blue-300 dark:bg-white/5"
@@ -141,42 +141,36 @@ export default function LoginPage() {
               </div>
             ))}
           </div>
-        </div>
 
-        <p className="relative text-xs text-slate-500">
-          Your datasets stay private to your account.
-        </p>
-      </section>
-
-      <section className="flex items-center justify-center bg-white px-6 py-10 text-slate-950 lg:px-12">
-        <div className="w-full max-w-sm">
-          <h2 className="text-3xl font-semibold">Welcome back</h2>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            Sign in with your Google account to open your workspaces.
-          </p>
-
-          <Button
-            className="mt-8 h-12 w-full rounded-xl text-base"
-            disabled={isLoading}
-            onClick={loginWithGoogle}
-            variant="secondary"
-          >
-            <GoogleIcon />
-            {isLoading ? "Checking session..." : "Continue with Google"}
-          </Button>
-
-          {error ? (
-            <p className="mt-4 rounded-lg border border-red-200 bg-red-50/60 px-3 py-2 text-sm text-red-600">
-              {error}
+          <div className="rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-xl shadow-slate-900/5 backdrop-blur sm:p-8">
+            <h2 className="text-2xl font-semibold">Welcome back</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Sign in with your Google account to open your workspaces.
             </p>
-          ) : null}
 
-          <p className="mt-8 text-xs leading-5 text-slate-500">
-            We only request your name, email and profile photo to create your
-            account.
-          </p>
+            <Button
+              className="mt-6 h-12 w-full rounded-xl text-base"
+              disabled={isLoading}
+              onClick={loginWithGoogle}
+              variant="secondary"
+            >
+              <GoogleIcon />
+              {isLoading ? "Checking session..." : "Continue with Google"}
+            </Button>
+
+            {error ? (
+              <p className="mt-4 rounded-lg border border-red-200 bg-red-50/60 px-3 py-2 text-sm text-red-600">
+                {error}
+              </p>
+            ) : null}
+
+            <p className="mt-5 text-xs leading-5 text-slate-500">
+              We only request your name, email and profile photo to create your
+              account. Your datasets stay private to your account.
+            </p>
+          </div>
         </div>
-      </section>
+      </div>
     </main>
   );
 }
