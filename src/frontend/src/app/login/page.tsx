@@ -9,7 +9,7 @@ import { useAuth } from "@/hooks/use-auth";
 
 function GoogleIcon() {
   return (
-    <svg className="h-5 w-5" viewBox="0 0 24 24">
+    <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24">
       <path
         d="M23.52 12.27c0-.85-.08-1.67-.22-2.45H12v4.64h6.46a5.52 5.52 0 0 1-2.4 3.62v3h3.88c2.27-2.09 3.58-5.17 3.58-8.81z"
         fill="#4285F4"
@@ -30,147 +30,83 @@ function GoogleIcon() {
   );
 }
 
-function FeatureIcon({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white/70 text-blue-700 ring-1 ring-slate-200 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10">
-      <svg
-        className="h-5 w-5"
-        fill="none"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="2"
-        viewBox="0 0 24 24"
-      >
-        {children}
-      </svg>
-    </span>
-  );
-}
-
-const FEATURES = [
-  {
-    title: "Upload a CSV",
-    text: "Get an instant schema overview with rows, columns and types.",
-    icon: (
-      <>
-        <path d="M12 16V4M7 9l5-5 5 5" />
-        <path d="M5 20h14" />
-      </>
-    ),
-  },
-  {
-    title: "Ask the agent",
-    text: "It picks the right analysis tools and explains computed results.",
-    icon: (
-      <path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-    ),
-  },
-  {
-    title: "Keep every result",
-    text: "Runs, charts and findings are saved and reopen anytime.",
-    icon: (
-      <>
-        <circle cx="12" cy="12" r="9" />
-        <path d="M12 7v5l3 2" />
-      </>
-    ),
-  },
-];
-
 export default function LoginPage() {
   const router = useRouter();
   const { user, isLoading, error, loginWithGoogle } = useAuth();
 
   useEffect(() => {
-    if (!isLoading && user) {
-      router.replace("/workspaces");
-    }
+    if (!isLoading && user) router.replace("/workspaces");
   }, [isLoading, router, user]);
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[linear-gradient(160deg,#dbeafe_0%,#eef2ff_45%,#e0f2fe_100%)] text-slate-950 dark:bg-[linear-gradient(160deg,#090c12_0%,#131923_55%,#1b2330_100%)]">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -left-24 -top-24 h-80 w-80 rounded-full bg-blue-400/30 blur-3xl dark:bg-slate-400/10"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -bottom-32 right-0 h-96 w-96 rounded-full bg-violet-400/25 blur-3xl dark:bg-slate-500/10"
-      />
-
-      <div className="relative mx-auto flex min-h-screen w-full max-w-4xl flex-col px-6 py-8">
-        <header className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <AppLogo className="h-10 w-10" />
-            <span className="app-brand text-3xl font-semibold tracking-normal">
-              DataScope
-            </span>
-          </div>
-          <ThemeToggle />
-        </header>
-
-        <div className="flex flex-1 flex-col justify-center gap-10 py-12">
-          <div>
-            <span className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white/60 px-3 py-1 text-xs font-medium uppercase tracking-wide text-slate-700 backdrop-blur dark:bg-white/5">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              Dataset analysis workspace
-            </span>
-            <h1 className="mt-5 text-4xl font-semibold tracking-normal sm:text-5xl">
-              Turn uploaded CSVs into reusable analysis records.
-            </h1>
-            <p className="mt-5 max-w-xl text-base leading-7 text-slate-600">
-              Sign in to manage workspaces, upload datasets, inspect schema
-              quality, and run guided analysis jobs.
-            </p>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-3">
-            {FEATURES.map((feature) => (
-              <div
-                className="rounded-xl border border-slate-200 bg-white/60 p-4 backdrop-blur transition hover:-translate-y-0.5 hover:border-blue-300 dark:bg-white/5"
-                key={feature.title}
-              >
-                <FeatureIcon>{feature.icon}</FeatureIcon>
-                <p className="mt-3 text-sm font-semibold text-slate-900">
-                  {feature.title}
-                </p>
-                <p className="mt-1 text-xs leading-5 text-slate-600">
-                  {feature.text}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-xl shadow-slate-900/5 backdrop-blur sm:p-8">
-            <h2 className="text-2xl font-semibold">Welcome back</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              Sign in with your Google account to open your workspaces.
-            </p>
-
-            <Button
-              className="mt-6 h-12 w-full rounded-xl text-base"
-              disabled={isLoading}
-              onClick={loginWithGoogle}
-              variant="secondary"
-            >
-              <GoogleIcon />
-              {isLoading ? "Checking session..." : "Continue with Google"}
-            </Button>
-
-            {error ? (
-              <p className="mt-4 rounded-lg border border-red-200 bg-red-50/60 px-3 py-2 text-sm text-red-600">
-                {error}
-              </p>
-            ) : null}
-
-            <p className="mt-5 text-xs leading-5 text-slate-500">
-              We only request your name, email and profile photo to create your
-              account. Your datasets stay private to your account.
-            </p>
-          </div>
-        </div>
+    <main className="flex min-h-screen flex-col px-6 py-7">
+      <div aria-hidden="true" className="pointer-events-none fixed inset-0 overflow-hidden">
+        <svg
+          className="absolute left-1/2 top-1/2 h-[min(82vh,720px)] w-[min(100vw,1200px)] -translate-x-1/2 -translate-y-1/2 text-slate-600 opacity-[0.38] dark:text-slate-700 dark:opacity-[0.44]"
+          fill="none"
+          viewBox="0 0 1000 560"
+        >
+          <g stroke="currentColor" strokeDasharray="4 8" strokeWidth="1.5">
+            <path d="M80 100H920M80 190H920M80 280H920M80 370H920M80 460H920" />
+            <path d="M180 70V480M340 70V480M500 70V480M660 70V480M820 70V480" />
+          </g>
+          <g stroke="currentColor" strokeWidth="2.5">
+            <path d="M130 410L270 350L390 375L530 255L650 292L790 160L870 185" />
+            <path d="M130 465V430M170 465V400M210 465V420M250 465V380M290 465V415M330 465V390" opacity="0.6" />
+            <circle cx="270" cy="350" r="4" fill="var(--background)" />
+            <circle cx="530" cy="255" r="4" fill="var(--background)" />
+            <circle cx="790" cy="160" r="4" fill="var(--background)" />
+          </g>
+        </svg>
       </div>
+      <header className="mx-auto flex w-full max-w-4xl items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <AppLogo className="h-8 w-8" />
+          <span className="app-brand text-xl font-semibold">DataScope</span>
+        </div>
+        <ThemeToggle />
+      </header>
+
+      <div className="relative z-10 flex flex-1 items-center justify-center py-12">
+        <section className="login-sign-in-card fade-up w-full max-w-md rounded-2xl border border-slate-200/80 bg-white/35 p-8 text-center shadow-lg shadow-slate-900/5 backdrop-blur-sm dark:border-white/10 dark:bg-white/[0.045] dark:shadow-black/10 sm:p-10">
+          <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
+            Data analysis workspace
+          </p>
+          <h1 className="mt-3 text-sm font-normal text-foreground">
+            Sign in to DataScope
+          </h1>
+          <p className="mt-2 text-lg font-bold leading-7 text-foreground">
+            Turn your CSVs into reusable analysis records with AI.
+          </p>
+          <p className="mt-3 text-xs text-slate-500">
+            CSV upload <span aria-hidden="true">·</span> Guided analysis{" "}
+            <span aria-hidden="true">·</span> Saved results
+          </p>
+
+          <Button
+            className="login-sign-in-button mt-7 h-11 w-full rounded-xl text-sm"
+            disabled={isLoading}
+            onClick={loginWithGoogle}
+            variant="secondary"
+          >
+            <GoogleIcon />
+            {isLoading ? "Checking session…" : "Continue with Google"}
+          </Button>
+
+          {error ? (
+            <p
+              role="alert"
+              className="mt-4 rounded-lg border border-red-200 bg-red-50/60 px-3 py-2 text-sm text-red-600 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300"
+            >
+              {error}
+            </p>
+          ) : null}
+        </section>
+      </div>
+
+      <p className="text-center text-xs text-slate-500">
+        Your datasets stay private to your account.
+      </p>
     </main>
   );
 }

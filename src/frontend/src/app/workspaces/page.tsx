@@ -98,6 +98,12 @@ export default function WorkspacesPage() {
   const firstName = user?.name?.split(" ")[0];
   const showSearch = workspaces.length > 4;
   const isEmpty = !isLoading && workspaces.length === 0;
+  const latestActivityAt = workspaces.reduce<string | null>((latest, workspace) => {
+    if (!latest) return workspace.last_activity_at;
+    return Date.parse(workspace.last_activity_at) > Date.parse(latest)
+      ? workspace.last_activity_at
+      : latest;
+  }, null);
 
   return (
     <WorkspaceShell>
@@ -111,12 +117,9 @@ export default function WorkspacesPage() {
               <h1 className="text-3xl font-semibold tracking-normal">
                 Workspaces
               </h1>
-              {!isLoading ? (
-                <Badge variant="info">{workspaces.length}</Badge>
-              ) : null}
             </div>
             <p className="mt-2 text-sm text-slate-600">
-              Pick up a dataset analysis or start a fresh upload.
+              Your data work, organized from the first upload to every saved result.
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -134,6 +137,39 @@ export default function WorkspacesPage() {
             </Button>
           </div>
         </div>
+
+        <section
+          aria-label="Workspace activity overview"
+          className="mt-6 grid gap-3 sm:grid-cols-2"
+        >
+          <Card className="flex items-center justify-between gap-4 px-5 py-4">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                Your workspaces
+              </p>
+              <p className="mt-1 text-sm text-slate-600">
+                Saved spaces for your datasets and analyses
+              </p>
+            </div>
+            <span className="text-2xl font-semibold tabular-nums text-foreground">
+              {isLoading ? "—" : workspaces.length}
+            </span>
+          </Card>
+          <Card className="flex items-center justify-between gap-4 px-5 py-4">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                Latest activity
+              </p>
+              <p className="mt-1 text-sm text-slate-600">
+                {isLoading
+                  ? "Loading your activity…"
+                  : latestActivityAt
+                    ? formatDateTime(latestActivityAt)
+                    : "No activity yet"}
+              </p>
+            </div>
+          </Card>
+        </section>
 
         {error ? <p className="mt-6 text-sm text-red-600">{error}</p> : null}
         {createError ? (
