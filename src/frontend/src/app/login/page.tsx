@@ -59,7 +59,7 @@ export default function LoginPage() {
           </g>
         </svg>
       </div>
-      <header className="mx-auto flex w-full max-w-4xl items-center justify-between">
+      <header className="mx-auto flex w-full max-w-7xl items-center justify-between">
         <div className="flex items-center gap-2.5">
           <AppLogo className="h-8 w-8" />
           <span className="app-brand text-xl font-semibold">DataScope</span>
@@ -68,14 +68,14 @@ export default function LoginPage() {
       </header>
 
       <div className="relative z-10 flex flex-1 items-center justify-center py-12">
-        <section className="login-sign-in-card fade-up w-full max-w-md rounded-2xl border border-slate-200/80 bg-white/35 p-8 text-center shadow-lg shadow-slate-900/5 backdrop-blur-sm dark:border-white/10 dark:bg-white/[0.045] dark:shadow-black/10 sm:p-10">
+        <section className="login-sign-in-card fade-up w-full max-w-lg rounded-2xl border border-slate-200/80 bg-white/40 p-8 text-center shadow-lg shadow-slate-900/5 backdrop-blur-sm dark:border-white/10 dark:bg-white/[0.045] dark:shadow-black/10 sm:p-10">
           <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
             Data analysis workspace
           </p>
           <h1 className="mt-3 text-sm font-normal text-foreground">
             Sign in to DataScope
           </h1>
-          <p className="mt-2 text-lg font-bold leading-7 text-foreground">
+          <p className="mt-2 text-2xl font-bold leading-7 text-foreground">
             Turn your CSVs into reusable analysis records with AI.
           </p>
           <p className="mt-3 text-xs text-slate-500">
